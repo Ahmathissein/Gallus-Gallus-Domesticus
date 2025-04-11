@@ -5,16 +5,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
-import components.Menu
+import com.example.myapplication.components.*
+import com.example.myapplication.model.EvenementScreen
+import com.example.myapplication.model.FicheIdentite
+import com.google.common.math.Stats
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,28 +25,41 @@ class MainActivity : ComponentActivity() {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
 
+                var currentScreen by remember { mutableStateOf("acceuil")}
                 ModalNavigationDrawer(
                     drawerState = drawerState,
                     drawerContent = {
                         Menu(
-                            onClose = { scope.launch { drawerState.close() } },
+
+                            onClose = {
+                                println("Closing menu")
+                                scope.launch { drawerState.close() } },
+                            onItemSelected = {screen ->
+                                println("Selected screen: $screen")
+                                currentScreen = screen
+                                scope.launch { drawerState.close() }
+                            }
                         )
                     }
 
                 ){
-                    Scaffold(
-                        topBar = {
+                    Scaffold() { innerPadding ->
+                        Column(
+                            modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                        ){
                             Header(
-                                onMenuClick = {
-                                    scope.launch { drawerState.open() }
-                                }
+                                onMenuClick = { scope.launch { drawerState.open() } },
+                                onTitleClick = { currentScreen = "acceuil" },
                             )
+                            when (currentScreen) {
+                                "acceuil" -> Acceuil(onNavigate = {currentScreen = it})
+                                "ficheIdentite" -> FicheIdentite()
+                                //"stats" -> Stats()
+                                "evenements" -> EvenementScreen(onMenuClick = { scope.launch { drawerState.open() } })
+                            }
                         }
-                    ) { innerPadding ->
-                        Text(
-                            text = "Bienvenue",
-                            modifier = Modifier.padding(innerPadding)
-                        )
                     }
                 }
 

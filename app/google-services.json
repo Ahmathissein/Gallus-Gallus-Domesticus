@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "276683165715",
+    "project_id": "gallus-75446",
+    "storage_bucket": "gallus-75446.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:276683165715:android:365b488767a90f2bb36fe6",
+        "android_client_info": {
+          "package_name": "com.example.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcI732T95E144wR8YUt9CQvxO-8_RAsS4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

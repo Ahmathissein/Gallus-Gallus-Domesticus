@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -10,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.myapplication"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -56,7 +57,25 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("androidx.compose.ui:ui-text-google-fonts:1.6.1")
+    implementation ("com.google.firebase:firebase-auth-ktx")
     implementation ("androidx.compose.material:material-icons-extended:<version>")
+    // Import the Firebase BoM
+
+    implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
+    implementation("io.coil-kt:coil-compose:2.4.0")
+
+
+    // TODO: Add the dependencies for Firebase products you want to use
+
+    // When using the BoM, don't specify versions in Firebase dependencies
+
+    implementation("com.google.firebase:firebase-analytics")
+
+
+    // Add the dependencies for any other desired Firebase products
+
+    // https://firebase.google.com/docs/android/setup#available-libraries
+
 
 
 }
