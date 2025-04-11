@@ -5,22 +5,22 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardType
 import coil.compose.rememberAsyncImagePainter
+import java.time.LocalDate
 
 
 @Composable
@@ -45,6 +45,16 @@ fun CreerPoule(
     var dateDeces by remember { mutableStateOf("") }
     var dateDecesPresumee by remember { mutableStateOf(false) }
     var photoPrincipaleUri by remember { mutableStateOf<Uri?>(null) }
+
+    val listePhotos = remember { mutableStateListOf<Photo>() }
+    val imagePickerAlbumLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            listePhotos.add(Photo(uri = it.toString(), date = LocalDate.now()))
+        }
+    }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ){
@@ -190,8 +200,42 @@ fun CreerPoule(
                 contentDescription = "Photo principale",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(120.dp),
                 contentScale = ContentScale.Crop
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { imagePickerAlbumLauncher.launch("image/*") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF888888))
+        ) {
+            Text("Ajouter une photo à l'album", color = Color.White)
+        }
+
+        if (listePhotos.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Album photo :", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp),
+                content = {
+                    items(listePhotos) { photo ->
+                        Image(
+                            painter = rememberAsyncImagePainter(photo.uri),
+                            contentDescription = "Photo album",
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .aspectRatio(1f),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
             )
         }
 
