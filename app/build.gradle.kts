@@ -49,6 +49,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("com.google.android.datatransport:transport-api:4.0.0")
     implementation("androidx.media3:media3-common-ktx:1.6.0")
+    implementation("com.google.firebase:firebase-firestore-ktx:25.1.3")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
@@ -60,10 +61,11 @@ dependencies {
     implementation ("com.google.firebase:firebase-auth-ktx")
     implementation ("androidx.compose.material:material-icons-extended:<version>")
     // Import the Firebase BoM
-
+    implementation("com.google.firebase:firebase-storage-ktx")
     implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
     implementation("io.coil-kt:coil-compose:2.4.0")
-
+    implementation("androidx.navigation:navigation-compose:2.7.5")
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // TODO: Add the dependencies for Firebase products you want to use
 

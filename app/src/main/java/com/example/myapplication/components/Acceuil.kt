@@ -1,5 +1,8 @@
 package com.example.myapplication.components
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -11,9 +14,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.myapplication.R
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 @Composable
@@ -63,7 +68,7 @@ fun Acceuil (onNavigate: (String) -> Unit) {
             ){
                 item {
                     AccueilCard(
-                        icon = Icons.Default.Person,
+                        icon = painterResource(id = R.drawable.chicken),
                         title = "Fiches             d'identités",
                         description = "Informations pour chaque gallinacé",
                         onClick = {
@@ -74,7 +79,7 @@ fun Acceuil (onNavigate: (String) -> Unit) {
 
                 item {
                     AccueilCard(
-                        icon = Icons.Default.BarChart,
+                        icon = rememberVectorPainter(Icons.Default.BarChart),
                         title = "Statistiques de pontes",
                         description = "Analyse de production d'oeufs",
                         onClick = {
@@ -85,7 +90,7 @@ fun Acceuil (onNavigate: (String) -> Unit) {
 
                 item {
                     AccueilCard(
-                        icon = Icons.Default.Event,
+                        icon = rememberVectorPainter(Icons.Default.Event),
                         title = "Événements du poulailler",
                         description = "Événements importants de la basse-cour",
                         onClick = {
@@ -96,7 +101,7 @@ fun Acceuil (onNavigate: (String) -> Unit) {
 
                 item {
                     AccueilCard(
-                        icon = Icons.Default.AttachMoney,
+                        icon = rememberVectorPainter(Icons.Default.AttachMoney),
                         title = "Coûts de production",
                         description = "Traces des dépenses liées à l'élevage",
                         onClick = {
@@ -107,7 +112,7 @@ fun Acceuil (onNavigate: (String) -> Unit) {
 
                 item {
                     AccueilCard(
-                        icon = Icons.Default.Timeline,
+                        icon = rememberVectorPainter(Icons.Default.Timeline),
                         title = "Rentabilité",
                         description = "Retour sur investissement de la basse-cour",
                         onClick = {
@@ -121,19 +126,23 @@ fun Acceuil (onNavigate: (String) -> Unit) {
 }
 
 @Composable
-fun AccueilCard(icon: ImageVector, title: String, description: String, onClick: () -> Unit){
+fun AccueilCard(icon: Painter, title: String, description: String, onClick: () -> Unit){
     MyApplicationTheme {
         Card(
             onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(185.dp),
+                .height(195.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             shape = RoundedCornerShape(8.dp),
             elevation = CardDefaults.cardElevation(6.dp)
         ){
             Column(modifier = Modifier.padding(16.dp)) {
-                Icon(icon, contentDescription = null, tint = Color(0xFF5D4037), modifier = Modifier.size(28.dp) )
+                Image(
+                    painter = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(text = title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xCC9C5700))
                 Spacer(modifier = Modifier.height(4.dp))

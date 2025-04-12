@@ -1,36 +1,40 @@
 package com.example.myapplication.classes.poule
 
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.IgnoreExtraProperties
 import java.time.*
 import java.util.*
 
 
+@IgnoreExtraProperties
 data class Poule(
     val id: String = UUID.randomUUID().toString(),
-    var nom: String,
+    var nom: String = "",
     var photos: List<Photo> = listOf(),
     var photoPrincipaleUri: String? = null,
 
-    var dateAcquisition: LocalDate? = null,
+    var dateAcquisition: String? = null,
+    var acquisitionPresumee: Boolean = false,
     var lieuAchat: String? = null,
     var prixAchat: Double? = null,
 
-    var dateNaissance: YearMonth? = null,
+    var dateNaissance: String? = null,
     var naissancePresumee: Boolean = false,
 
     var variete: String? = null,
-    var debutPonte: LocalDate? = null,
+    var debutPonte: String? = null,
     var particularitesComportementales: String? = null,
 
     var evenements: List<Evenement> = listOf(),
 
-    var dateDeces: LocalDate? = null,
+    var dateDeces: String? = null,
     var causeDeces: String? = null,
     var causePresumee: Boolean = false,
 
-    var historiquePonte: Map<LocalDate, Boolean> = emptyMap(),
-    var statistiquesMensuelles: Map<YearMonth, Int> = emptyMap(),
-    var statistiquesAnnuelles: Map<Year, Int> = emptyMap(),
+    var historiquePonte: Map<String, Boolean> = emptyMap(),
+    var statistiquesMensuelles: Map<String, Int> = emptyMap(),
+    var statistiquesAnnuelles: Map<String, Int> = emptyMap(),
 
-    val creeLe: LocalDateTime = LocalDateTime.now(),
-    var modifieLe: LocalDateTime = LocalDateTime.now()
+    val creeLe: Timestamp = Timestamp.now(),
+    var modifieLe: Timestamp = Timestamp.now()
 )

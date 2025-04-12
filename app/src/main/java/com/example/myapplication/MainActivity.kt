@@ -9,12 +9,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.myapplication.classes.poule.CreerPoule
+import com.example.myapplication.classes.poule.DetailPouleScreen
+import com.example.myapplication.classes.poule.Poule
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
 import com.example.myapplication.components.*
 import com.example.myapplication.model.EvenementScreen
 import com.example.myapplication.model.FicheIdentite
-import com.google.common.math.Stats
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,47 +29,77 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
+                val navController = rememberNavController()
+                var selectedPoule by remember { mutableStateOf<Poule?>(null) }
 
-                var currentScreen by remember { mutableStateOf("acceuil")}
                 ModalNavigationDrawer(
                     drawerState = drawerState,
                     drawerContent = {
                         Menu(
-
-                            onClose = {
-                                println("Closing menu")
-                                scope.launch { drawerState.close() } },
-                            onItemSelected = {screen ->
-                                println("Selected screen: $screen")
-                                currentScreen = screen
+                            onClose = { scope.launch { drawerState.close() } },
+                            onItemSelected = { screen ->
+                                navController.navigate(screen)
                                 scope.launch { drawerState.close() }
                             }
                         )
                     }
-
-                ){
-                    Scaffold() { innerPadding ->
+                ) {
+                    Scaffold { innerPadding ->
                         Column(
                             modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                        ){
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                        ) {
                             Header(
                                 onMenuClick = { scope.launch { drawerState.open() } },
-                                onTitleClick = { currentScreen = "acceuil" },
+                                onTitleClick = { navController.navigate("acceuil") }
                             )
-                            when (currentScreen) {
-                                "acceuil" -> Acceuil(onNavigate = {currentScreen = it})
-                                "ficheIdentite" -> FicheIdentite()
-                                //"stats" -> Stats()
-                                "evenements" -> EvenementScreen(onMenuClick = { scope.launch { drawerState.open() } })
+
+                            NavHost(navController = navController, startDestination = "acceuil") {
+                                composable("acceuil") {
+                                    Acceuil(onNavigate = { navController.navigate(it) })
+                                }
+
+                                composable("ficheIdentite") {
+                                    FicheIdentite(
+                                        onAjouterPoule = { navController.navigate("creerPoule") },
+                                        onVoirFiche = { poule ->
+                                            selectedPoule = poule
+                                            navController.navigate("detailPoule")
+                                        }
+                                    )
+
+                                }
+
+                                composable("creerPoule") {
+                                    CreerPoule(
+                                        onValider = { pouleCreee ->
+                                            // Naviguer vers la fiche d'identité
+                                            navController.navigate("ficheIdentite") {
+                                                popUpTo("creerPoule") { inclusive = true }
+                                            }
+                                        }
+                                    )
+                                }
+
+                                composable("evenements") {
+                                    EvenementScreen(onMenuClick = { scope.launch { drawerState.open() } })
+                                }
+
+                                composable("detailPoule") {
+                                    selectedPoule?.let { poule ->
+                                        DetailPouleScreen(poule)
+                                    }
+                                }
+
+
                             }
                         }
                     }
                 }
-
             }
         }
+
     }
 }
 
