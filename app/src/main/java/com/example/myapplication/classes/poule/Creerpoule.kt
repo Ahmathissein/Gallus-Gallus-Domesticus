@@ -39,7 +39,10 @@ fun CreerPoule(
 ) {
     val scrollState = rememberScrollState()
 
-    // Champs avec état
+    val context = LocalContext.current
+    val today = LocalDateTime.now().toString()
+
+    // États
     var nom by remember { mutableStateOf("") }
     var variete by remember { mutableStateOf("") }
     var lieuAchat by remember { mutableStateOf("") }
@@ -49,101 +52,76 @@ fun CreerPoule(
     var dateAcquisition by remember { mutableStateOf("") }
     var dateAcquisitionPresumee by remember { mutableStateOf(false) }
     var particularites by remember { mutableStateOf("") }
-    //var debutPonte by remember { mutableStateOf("") }
-    //var causeDeces by remember { mutableStateOf("") }
-    //var causePresumee by remember { mutableStateOf(false) }
-    //var dateDeces by remember { mutableStateOf("") }
-    //var dateDecesPresumee by remember { mutableStateOf(false) }
-
-
-    // Gestion des erreurs
-    var nomError by remember { mutableStateOf(false) }
-    var dateAcquisitionError by remember { mutableStateOf(false) }
-    var dateNaissanceError by remember { mutableStateOf(false) }
-    var particularitesError by remember { mutableStateOf(false) }
-    var varieteError by remember { mutableStateOf(false) }
-    var photoPrincipaleError by remember { mutableStateOf(false) }
-    val today = LocalDateTime.now().toString()
-
 
     val listePhotos = remember { mutableStateListOf<Photo>() }
-
     var photoPrincipaleUri by remember { mutableStateOf<Uri?>(null) }
-    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Erreurs
+    var nomError by remember { mutableStateOf(false) }
+    var dateNaissanceError by remember { mutableStateOf(false) }
+    var varieteError by remember { mutableStateOf(false) }
+    var particularitesError by remember { mutableStateOf(false) }
+    var dateAcquisitionError by remember { mutableStateOf(false) }
+    var photoPrincipaleError by remember { mutableStateOf(false) }
+
+    // Sélecteurs
     var showImagePickerDialog by remember { mutableStateOf(false) }
-    // Gère quel type d'image on est en train de choisir
     var isPickingAlbumImage by remember { mutableStateOf(false) }
+    var pendingUri by remember { mutableStateOf<Uri?>(null) }
 
-// Pour la capture via caméra (album)
-    var albumCameraImageUri by remember { mutableStateOf<Uri?>(null) }
-
-
-    val context = LocalContext.current
-
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && cameraImageUri != null) {
-            photoPrincipaleUri = cameraImageUri
-            photoPrincipaleError = false
+    // Launchers
+    val genericCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        pendingUri?.let { uri ->
+            if (success) {
+                if (isPickingAlbumImage) {
+                    listePhotos.add(Photo(uri.toString(), today))
+                } else {
+                    photoPrincipaleUri = uri
+                    photoPrincipaleError = false
+                }
+            }
+            pendingUri = null
         }
     }
 
-    val albumCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && albumCameraImageUri != null) {
-            listePhotos.add(Photo(uri = albumCameraImageUri.toString(), date = today))
-        }
-    }
-
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            if (isPickingAlbumImage && albumCameraImageUri != null) {
-                albumCameraLauncher.launch(albumCameraImageUri!!)
-            } else if (!isPickingAlbumImage && cameraImageUri != null) {
-                cameraLauncher.launch(cameraImageUri!!)
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            pendingUri?.let { uri ->
+                genericCameraLauncher.launch(uri)
             }
         } else {
             println("Permission refusée pour la caméra")
         }
     }
 
-
-
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            photoPrincipaleUri = it
-            photoPrincipaleError = false
-        }
-    }
-
-    // Pour choisir une image d’album (galerie)
-    val imagePickerAlbumLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            listePhotos.add(Photo(uri = it.toString(), date = today))
-        }
-    }
-
-
-    val galleryPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
             if (isPickingAlbumImage) {
-                imagePickerAlbumLauncher.launch("image/*")
+                listePhotos.add(Photo(it.toString(), today))
             } else {
-                galleryLauncher.launch("image/*")
+                photoPrincipaleUri = it
+                photoPrincipaleError = false
             }
+        }
+    }
+
+    val galleryPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            galleryLauncher.launch("image/*")
         } else {
             println("Permission refusée pour la galerie")
         }
     }
 
-
-
-
+    fun createImageUri(context: Context, name: String): Uri {
+        val resolver = context.contentResolver
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, "${name}_${System.currentTimeMillis()}.jpg")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        }
+        return resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            ?: throw IllegalStateException("Impossible de créer une URI")
+    }
 
     fun resetErrors() {
         nomError = false
@@ -152,7 +130,6 @@ fun CreerPoule(
         particularitesError = false
         dateAcquisitionError = false
         photoPrincipaleError = false
-
     }
 
 
@@ -335,43 +312,29 @@ fun CreerPoule(
             Text("Cause présumée")
         }
         */
-// Bouton de choix avec dialogue galerie / caméra
         Button(
             onClick = {
                 resetErrors()
                 isPickingAlbumImage = false
                 showImagePickerDialog = true
             },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB76E12)),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB76E12))
         ) {
             Text("Choisir une image principale", color = Color.White)
         }
 
-        if (photoPrincipaleError) {
-            Text(
-                text = "Veuillez choisir une photo principale",
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-            )
-        } else {
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
         photoPrincipaleUri?.let { uri ->
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
             Image(
                 painter = rememberAsyncImagePainter(uri),
-                contentDescription = "Photo principale",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth().height(120.dp),
                 contentScale = ContentScale.Crop
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         Button(
             onClick = {
@@ -384,34 +347,6 @@ fun CreerPoule(
             Text("Ajouter une photo à l'album", color = Color.White)
         }
 
-        if (listePhotos.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Album photo :", style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 300.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(listePhotos) { photo ->
-                    Image(
-                        painter = rememberAsyncImagePainter(photo.uri),
-                        contentDescription = "Photo album",
-                        modifier = Modifier
-                            .padding(4.dp)
-                            .aspectRatio(1f),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-            }
-        } else {
-            Text("Aucune photo ajoutée à l'album", style = MaterialTheme.typography.bodySmall)
-        }
-
         if (showImagePickerDialog) {
             AlertDialog(
                 onDismissRequest = { showImagePickerDialog = false },
@@ -420,20 +355,13 @@ fun CreerPoule(
                 confirmButton = {
                     TextButton(onClick = {
                         showImagePickerDialog = false
-
-                        // Selon Android version, lancer directement ou demander permission
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                             galleryPermissionLauncher.launch(android.Manifest.permission.READ_MEDIA_IMAGES)
                         } else if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
                             galleryPermissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
                         } else {
-                            if (isPickingAlbumImage) {
-                                imagePickerAlbumLauncher.launch("image/*")
-                            } else {
-                                galleryLauncher.launch("image/*")
-                            }
+                            galleryLauncher.launch("image/*")
                         }
-
                     }) {
                         Text("Galerie")
                     }
@@ -441,20 +369,37 @@ fun CreerPoule(
                 dismissButton = {
                     TextButton(onClick = {
                         showImagePickerDialog = false
-                        val uri = createImageUri(context, if (isPickingAlbumImage) "album" else "principale")
-                        if (isPickingAlbumImage) {
-                            albumCameraImageUri = uri
-                        } else {
-                            cameraImageUri = uri
-                        }
+                        pendingUri = createImageUri(context, if (isPickingAlbumImage) "album" else "principale")
                         cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-
-
                     }) {
                         Text("Caméra")
                     }
                 }
             )
+        }
+
+        if (listePhotos.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Text("Album photo :", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(8.dp))
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(listePhotos) { photo ->
+                    Image(
+                        painter = rememberAsyncImagePainter(photo.uri),
+                        contentDescription = "Photo album",
+                        modifier = Modifier.padding(4.dp).aspectRatio(1f),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        } else {
+            Text("Aucune photo ajoutée à l'album", style = MaterialTheme.typography.bodySmall)
         }
 
 
@@ -609,16 +554,6 @@ fun String.isValidDate(): Boolean {
 }
 
 
-
-fun createImageUri(context: Context, name: String = "photo"): Uri {
-    val contentResolver = context.contentResolver
-    val contentValues = ContentValues().apply {
-        put(MediaStore.Images.Media.DISPLAY_NAME, "${name}_${System.currentTimeMillis()}.jpg")
-        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-    }
-    return contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-        ?: throw IllegalStateException("Impossible de créer une URI pour l’image")
-}
 
 
 
