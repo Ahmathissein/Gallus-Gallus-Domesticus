@@ -3,14 +3,11 @@ package com.example.myapplication.classes.poule
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,8 +26,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import android.content.ContentValues
 import android.content.Context
 import android.provider.MediaStore
-
-
+import androidx.compose.foundation.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.draw.clip
 
 
 @Composable
@@ -68,6 +69,7 @@ fun CreerPoule(
     var showImagePickerDialog by remember { mutableStateOf(false) }
     var isPickingAlbumImage by remember { mutableStateOf(false) }
     var pendingUri by remember { mutableStateOf<Uri?>(null) }
+    var photoToDelete by remember { mutableStateOf<Photo?>(null) }
 
     // Launchers
     val genericCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -390,17 +392,62 @@ fun CreerPoule(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(listePhotos) { photo ->
-                    Image(
-                        painter = rememberAsyncImagePainter(photo.uri),
-                        contentDescription = "Photo album",
-                        modifier = Modifier.padding(4.dp).aspectRatio(1f),
-                        contentScale = ContentScale.Crop
-                    )
+                    Box(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .aspectRatio(1f)
+                    ) {
+                        Image(
+                            painter = rememberAsyncImagePainter(photo.uri),
+                            contentDescription = "Photo album",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+
+                        IconButton(
+                            onClick = { photoToDelete = photo },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(24.dp)
+                                .background(Color.Black.copy(alpha = 0.4f), shape = CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Supprimer",
+                                tint = Color.White
+                            )
+                        }
+                    }
                 }
             }
         } else {
             Text("Aucune photo ajoutée à l'album", style = MaterialTheme.typography.bodySmall)
         }
+
+        if (photoToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { photoToDelete = null },
+                title = { Text("Supprimer cette photo ?") },
+                text = { Text("Voulez-vous vraiment supprimer cette photo de l’album ?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        listePhotos.remove(photoToDelete)
+                        photoToDelete = null
+                    }) {
+                        Text("Supprimer")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { photoToDelete = null }) {
+                        Text("Annuler")
+                    }
+                }
+            )
+        }
+
 
 
 
