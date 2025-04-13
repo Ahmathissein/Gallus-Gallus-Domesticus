@@ -11,7 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.myapplication.classes.poule.CreerPoule
 import com.example.myapplication.classes.poule.DetailPouleScreen
 import com.example.myapplication.classes.poule.Poule
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
 import com.example.myapplication.components.*
 import com.example.myapplication.model.EvenementScreen
 import com.example.myapplication.model.FicheIdentite
+import com.google.gson.Gson
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,13 +71,21 @@ class MainActivity : ComponentActivity() {
                                             navController.navigate("detailPoule")
                                         }
                                     )
-
                                 }
 
-                                composable("creerPoule") {
+                                composable(
+                                    "creerPoule?json={json}",
+                                    arguments = listOf(navArgument("json") {
+                                        nullable = true
+                                        defaultValue = null
+                                    })
+                                ) { backStackEntry ->
+                                    val json = backStackEntry.arguments?.getString("json")
+                                    val pouleAModifier = json?.let { Gson().fromJson(it, Poule::class.java) }
+
                                     CreerPoule(
-                                        onValider = { pouleCreee ->
-                                            // Naviguer vers la fiche d'identité
+                                        pouleExistante = pouleAModifier,
+                                        onValider = {
                                             navController.navigate("ficheIdentite") {
                                                 popUpTo("creerPoule") { inclusive = true }
                                             }
@@ -82,18 +93,21 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
+
+
+
+
                                 composable("evenements") {
                                     EvenementScreen(onMenuClick = { scope.launch { drawerState.open() } })
                                 }
 
                                 composable("detailPoule") {
                                     selectedPoule?.let { poule ->
-                                        DetailPouleScreen(poule)
+                                        DetailPouleScreen(poule = poule, navController = navController)
                                     }
                                 }
-
-
                             }
+
                         }
                     }
                 }

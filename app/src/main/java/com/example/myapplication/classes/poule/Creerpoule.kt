@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 
 @Composable
 fun CreerPoule(
+    pouleExistante: Poule? = null,
     onValider: (Poule) -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -43,19 +44,26 @@ fun CreerPoule(
     val context = LocalContext.current
     val today = LocalDateTime.now().toString()
 
+    val initialPoule = pouleExistante
     // États
-    var nom by remember { mutableStateOf("") }
-    var variete by remember { mutableStateOf("") }
-    var lieuAchat by remember { mutableStateOf("") }
-    var prixAchat by remember { mutableStateOf("") }
-    var dateNaissance by remember { mutableStateOf("") }
-    var dateNaissancePresumee by remember { mutableStateOf(false) }
-    var dateAcquisition by remember { mutableStateOf("") }
-    var dateAcquisitionPresumee by remember { mutableStateOf(false) }
-    var particularites by remember { mutableStateOf("") }
+    var nom by remember { mutableStateOf(initialPoule?.nom ?: "") }
+    var variete by remember { mutableStateOf(initialPoule?.variete ?: "") }
+    var lieuAchat by remember { mutableStateOf(initialPoule?.lieuAchat ?: "") }
+    var prixAchat by remember { mutableStateOf(initialPoule?.prixAchat?.toString() ?: "") }
+    var dateNaissance by remember { mutableStateOf(initialPoule?.dateNaissance ?: "") }
+    var dateNaissancePresumee by remember { mutableStateOf(initialPoule?.naissancePresumee ?: false) }
+    var dateAcquisition by remember { mutableStateOf(initialPoule?.dateAcquisition ?: "") }
+    var dateAcquisitionPresumee by remember { mutableStateOf(initialPoule?.acquisitionPresumee ?: false) }
+    var particularites by remember { mutableStateOf(initialPoule?.particularitesComportementales ?: "") }
+    var debutPonte by remember { mutableStateOf(initialPoule?.debutPonte ?: "") }
+    var dateDeces by remember { mutableStateOf(initialPoule?.dateDeces ?: "") }
+    var causeDeces by remember { mutableStateOf(initialPoule?.causeDeces ?: "") }
+    var dateDecesPresume by remember { mutableStateOf(initialPoule?.causePresumee ?: false) }
+    var causeDecesPresume by remember { mutableStateOf(initialPoule?.causePresumee ?: false) }
 
-    val listePhotos = remember { mutableStateListOf<Photo>() }
-    var photoPrincipaleUri by remember { mutableStateOf<Uri?>(null) }
+    val listePhotos = remember { mutableStateListOf<Photo>().apply { addAll(initialPoule?.photos ?: emptyList()) } }
+    var photoPrincipaleUri by remember { mutableStateOf<Uri?>(initialPoule?.photoPrincipaleUri?.let { Uri.parse(it) }) }
+
 
     // Erreurs
     var nomError by remember { mutableStateOf(false) }
@@ -64,6 +72,8 @@ fun CreerPoule(
     var particularitesError by remember { mutableStateOf(false) }
     var dateAcquisitionError by remember { mutableStateOf(false) }
     var photoPrincipaleError by remember { mutableStateOf(false) }
+    var debutPonteError by remember { mutableStateOf(false) }
+
 
     // Sélecteurs
     var showImagePickerDialog by remember { mutableStateOf(false) }
@@ -256,16 +266,20 @@ fun CreerPoule(
             modifier = Modifier.fillMaxWidth()
         )
 
-        /*
+
         OutlinedTextField(
             value = debutPonte,
             onValueChange = { debutPonte = it },
             label = { Text("Début de ponte (yyyy-mm-dd)") },
+            isError = debutPonteError,
+            supportingText = {
+                if (debutPonteError) Text("Format invalide. Utilisez yyyy-mm-dd", color = MaterialTheme.colorScheme.error)
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
-        */
+
         OutlinedTextField(
             value = particularites,
             onValueChange = {
@@ -284,36 +298,40 @@ fun CreerPoule(
             modifier = Modifier.fillMaxWidth(),
             maxLines = 3
         )
-        /*
-        Spacer(modifier = Modifier.height(24.dp))
-        OutlinedTextField(
-            value = dateDeces,
-            onValueChange = { dateDeces = it },
-            label = { Text("Date de deces (yyyy-mm-dd)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = dateDecesPresumee,
-                onCheckedChange = { dateDecesPresumee = it }
+        if (pouleExistante != null) {
+            OutlinedTextField(
+                value = dateDeces,
+                onValueChange = { dateDeces = it },
+                label = { Text("Date de décès (yyyy-mm-dd)") },
+                modifier = Modifier.fillMaxWidth()
             )
-            Text(text = "Date de deces présumée")
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = dateDecesPresume,
+                    onCheckedChange = { dateDecesPresume = it }
+                )
+                Text("Date de décès présumée")
+            }
+
+            OutlinedTextField(
+                value = causeDeces,
+                onValueChange = { causeDeces = it },
+                label = { Text("Cause du décès") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = causeDecesPresume,
+                    onCheckedChange = { causeDecesPresume = it }
+                )
+                Text("Cause présumée")
+            }
         }
 
-        OutlinedTextField(
-            value = causeDeces,
-            onValueChange = { causeDeces = it },
-            label = { Text("Cause du décès") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = causePresumee, onCheckedChange = { causePresumee = it })
-            Text("Cause présumée")
-        }
-        */
         Button(
             onClick = {
                 resetErrors()
@@ -457,8 +475,10 @@ fun CreerPoule(
                 val isDateNaissanceValide = dateNaissance.isValideYearMonth()
                 val isVarieteValide = variete.isNotBlank()
                 val isParticularitesValide = particularites.isNotBlank()
-                val isDateAcquisitionValide = dateAcquisition.isBlank() || dateAcquisition.isValidDate()
+                val isDateAcquisitionValide = dateAcquisition.isBlank() || dateAcquisition.isValidDateOrEmpty()
                 val isPhotoPrincipaleValide = photoPrincipaleUri != null
+                val isDebutPonteValide = debutPonte.isValidDateOrEmpty()
+
 
                 // Mise à jour des erreurs
                 nomError = !isNomValide
@@ -467,121 +487,157 @@ fun CreerPoule(
                 particularitesError = !isParticularitesValide
                 dateAcquisitionError = !isDateAcquisitionValide
                 photoPrincipaleError = !isPhotoPrincipaleValide
+                debutPonteError = !isDebutPonteValide
+
 
                 val isFormValid = isNomValide &&
                         isDateNaissanceValide &&
                         isParticularitesValide &&
                         isVarieteValide &&
                         isDateAcquisitionValide &&
-                        isPhotoPrincipaleValide
+                        isPhotoPrincipaleValide && isDebutPonteValide
 
                 if (!isFormValid) return@Button
 
                 val userId = FirebaseAuth.getInstance().currentUser?.uid
                 if (userId == null) return@Button
 
-                val pouleId = UUID.randomUUID().toString()
+                val pouleId = pouleExistante?.id ?: UUID.randomUUID().toString()
                 val storageRef = FirebaseStorage.getInstance().reference
 
                 // 1️ Upload de la photo principale
+
+                val isFirebaseUrl = initialPoule?.photoPrincipaleUri?.startsWith("https://") == true &&
+                        photoPrincipaleUri?.toString()?.startsWith("https://") == true
                 val principaleRef = storageRef.child("poules/$userId/$pouleId/principale.jpg")
 
-                photoPrincipaleUri?.let { uri ->
-                    principaleRef.putFile(uri).continueWithTask { task ->
-                        if (!task.isSuccessful) throw task.exception ?: Exception("Erreur upload principale")
-                        principaleRef.downloadUrl
-                    }.addOnSuccessListener { principaleUrl ->
+                val albumPhotos = listePhotos.toList()
+                val uploadedPhotos = mutableListOf<Photo>()
 
-                        // 2️ Upload des photos de l’album (si présentes)
-                        val uploadedPhotos = mutableListOf<Photo>()
-                        val albumPhotos = listePhotos.toList()
-                        if (albumPhotos.isEmpty()) {
-                            // Pas de photo d’album, on peut créer la poule directement
-                            val poule = Poule(
-                                id = pouleId,
-                                nom = nom,
-                                variete = variete,
-                                lieuAchat = lieuAchat,
-                                prixAchat = prixAchat.toDoubleOrNull(),
-                                dateAcquisition = dateAcquisition.ifBlank { null },
-                                dateNaissance = dateNaissance,
-                                naissancePresumee = dateNaissancePresumee,
-                                particularitesComportementales = particularites,
-                                photoPrincipaleUri = principaleUrl.toString(),
-                                photos = emptyList()
-                            )
-                            val firestore = FirebaseFirestore.getInstance()
-                            firestore.collection("poules")
-                                .document(userId) // Utilisateur
-                                .collection("liste") // Sous-collection de poules
-                                .document(pouleId) // ID unique de la poule
-                                .set(poule)
-                                .addOnSuccessListener {
-                                    println("Poule enregistrée dans Firestore")
-                                    onValider(poule)
+                fun enregistrerDansFirestore(principaleUrl: String) {
+                    val poule = Poule(
+                        id = pouleId,
+                        nom = nom,
+                        variete = variete,
+                        lieuAchat = lieuAchat,
+                        prixAchat = prixAchat.toDoubleOrNull(),
+                        dateAcquisition = dateAcquisition.ifBlank { null },
+                        dateNaissance = dateNaissance,
+                        naissancePresumee = dateNaissancePresumee,
+                        particularitesComportementales = particularites,
+                        photoPrincipaleUri = principaleUrl,
+                        debutPonte = debutPonte.ifBlank { null },
+                        photos = uploadedPhotos
+                    )
+                    val firestore = FirebaseFirestore.getInstance()
+                    firestore.collection("poules")
+                        .document(userId!!)
+                        .collection("liste")
+                        .document(pouleId)
+                        .set(poule)
+                        .addOnSuccessListener {
+                            println("Poule enregistrée dans Firestore")
+                            onValider(poule)
+                        }
+                        .addOnFailureListener { e ->
+                            println("Erreur Firestore: ${e.message}")
+                        }
+                }
+
+                if (isFirebaseUrl) {
+                    // Pas besoin de re-uploader l’image principale
+                    if (albumPhotos.isEmpty()) {
+                        enregistrerDansFirestore(photoPrincipaleUri.toString())
+                    } else {
+                        var count = 0
+                        albumPhotos.forEachIndexed { index, photo ->
+                            if (photo.uri.startsWith("https://")) {
+                                // Déjà uploadée, on la garde telle quelle
+                                uploadedPhotos.add(photo)
+                                count++
+                                if (count == albumPhotos.size) {
+                                    enregistrerDansFirestore(photoPrincipaleUri.toString())
                                 }
-                                .addOnFailureListener { e ->
-                                    println("Erreur Firestore: ${e.message}")
-                                }
-                            println("creation avec succes 1")
-
-                        } else {
-                            // Upload des photos d’album une par une
-                            val total = albumPhotos.size
-                            var count = 0
-
-                            albumPhotos.forEachIndexed { index, photo ->
+                            } else {
+                                // Uri local, on doit uploader
                                 val albumRef = storageRef.child("poules/$userId/$pouleId/album/photo_$index.jpg")
                                 albumRef.putFile(Uri.parse(photo.uri)).continueWithTask { task ->
                                     if (!task.isSuccessful) throw task.exception ?: Exception("Erreur upload album")
                                     albumRef.downloadUrl
                                 }.addOnSuccessListener { downloadUrl ->
-                                    uploadedPhotos.add(
-                                        Photo(
-                                            uri = downloadUrl.toString(),
-                                            date = photo.date
-                                        )
-                                    )
+                                    uploadedPhotos.add(Photo(uri = downloadUrl.toString(), date = photo.date))
                                     count++
-                                    if (count == total) {
-                                        val poule = Poule(
-                                            id = pouleId,
-                                            nom = nom,
-                                            variete = variete,
-                                            lieuAchat = lieuAchat,
-                                            prixAchat = prixAchat.toDoubleOrNull(),
-                                            dateAcquisition = dateAcquisition.ifBlank() { null },
-                                            dateNaissance = dateNaissance,
-                                            naissancePresumee = dateNaissancePresumee,
-                                            particularitesComportementales = particularites,
-                                            photoPrincipaleUri = principaleUrl.toString(),
-                                            photos = uploadedPhotos
-                                        )
-                                        val firestore = FirebaseFirestore.getInstance()
-                                        firestore.collection("poules")
-                                            .document(userId) // Utilisateur
-                                            .collection("liste") // Sous-collection de poules
-                                            .document(pouleId) // ID unique de la poule
-                                            .set(poule)
-                                            .addOnSuccessListener {
-                                                println("Poule enregistrée dans Firestore")
-                                                onValider(poule)
-                                            }
-                                            .addOnFailureListener { e ->
-                                                println("Erreur Firestore: ${e.message}")
-                                            }
-                                        println("creation avec succes 2")
+                                    if (count == albumPhotos.size) {
+                                        enregistrerDansFirestore(photoPrincipaleUri.toString())
                                     }
                                 }
                             }
                         }
+
+                    }
+                } else {
+                    // Upload de la nouvelle image principale
+                    photoPrincipaleUri?.let { uri ->
+                        // Supprimer l'ancienne photo principale si elle existe et qu'on en a sélectionné une nouvelle
+                        val uriString = uri.toString()
+                        val isLocalUri = uriString.startsWith("content://") || uriString.startsWith("file://")
+
+                        if (!isLocalUri) {
+                            println("ERREUR : L’image principale n’est pas une URI locale. Abandon de l’upload.")
+                            return@let // on ne tente pas de l’upload
+                        }
+
+                        // Supprimer l'ancienne image si c'était une URL Firebase
+                        // Supprimer l'ancienne photo si elle est en ligne
+                        if (pouleExistante?.photoPrincipaleUri?.startsWith("https://") == true) {
+                            val ancienneRef = FirebaseStorage.getInstance().getReferenceFromUrl(pouleExistante.photoPrincipaleUri!!)
+                            ancienneRef.delete()
+                                .addOnSuccessListener { println("Ancienne photo principale supprimée") }
+                                .addOnFailureListener { println("Erreur suppression ancienne image : ${it.message}") }
+                        }
+
+
+                        principaleRef.putFile(uri).continueWithTask { task ->
+                            if (!task.isSuccessful) throw task.exception ?: Exception("Erreur upload principale")
+                            principaleRef.downloadUrl
+                        }.addOnSuccessListener { principaleUrl ->
+                            if (albumPhotos.isEmpty()) {
+                                enregistrerDansFirestore(principaleUrl.toString())
+                            } else {
+                                var count = 0
+                                albumPhotos.forEachIndexed { index, photo ->
+                                    if (photo.uri.startsWith("https://")) {
+                                        uploadedPhotos.add(photo)
+                                        count++
+                                        if (count == albumPhotos.size) {
+                                            enregistrerDansFirestore(principaleUrl.toString())
+                                        }
+                                    } else {
+                                        // cas des URI locales (content:// ou file://)
+                                        val albumRef = storageRef.child("poules/$userId/$pouleId/album/photo_$index.jpg")
+                                        albumRef.putFile(Uri.parse(photo.uri)).continueWithTask { task ->
+                                            if (!task.isSuccessful) throw task.exception ?: Exception("Erreur upload album")
+                                            albumRef.downloadUrl
+                                        }.addOnSuccessListener { downloadUrl ->
+                                            uploadedPhotos.add(Photo(uri = downloadUrl.toString(), date = photo.date))
+                                            count++
+                                            if (count == albumPhotos.size) {
+                                                enregistrerDansFirestore(principaleUrl.toString())
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
                     }
                 }
+
             },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB76E12))
         ) {
-            Text("Créer la fiche", color = Color.White)
+            Text(if (pouleExistante != null) "Enregistrer les modifications" else "Créer la fiche")
         }
 
     }
@@ -591,14 +647,15 @@ fun String.isValideYearMonth(): Boolean {
     return this.matches(Regex("""\d{4}-\d{2}"""))
 }
 
-fun String.isValidDate(): Boolean {
-    return try {
+fun String.isValidDateOrEmpty(): Boolean {
+    return this.isBlank() || try {
         LocalDate.parse(this)
         true
     } catch (e: Exception) {
         false
     }
 }
+
 
 
 

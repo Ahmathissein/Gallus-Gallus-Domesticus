@@ -1,6 +1,7 @@
 package com.example.myapplication.classes.poule
 
 import Header
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,11 +28,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailPouleScreen(poule: Poule) {
+fun DetailPouleScreen(poule: Poule, navController: NavController) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabTitles = listOf("Album", "Événements", "Statistiques")
     Column(
@@ -43,14 +46,20 @@ fun DetailPouleScreen(poule: Poule) {
         CenterAlignedTopAppBar(
             title = { Text("Fiche de ${poule.nom}", fontWeight = FontWeight.Bold) },
             navigationIcon = {
-                IconButton(onClick = { /* retour */ }) {
+                IconButton(onClick = { navController.popBackStack() }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                 }
             },
             actions = {
-                IconButton(onClick = { /* modifier */ }) {
+                IconButton(onClick = {
+                    val gson = Gson()
+                    val pouleJson = Uri.encode(gson.toJson(poule))
+                    navController.navigate("creerPoule?json=$pouleJson")
+
+                }) {
                     Icon(Icons.Default.Edit, contentDescription = "Modifier")
                 }
+
             }
         )
 
@@ -184,7 +193,7 @@ fun DetailPouleScreen(poule: Poule) {
 fun EvenementTab(poule: Poule) {
     Column(modifier = Modifier
         .fillMaxSize()
-        .padding(horizontal = 24.dp, vertical = 16.dp)) {
+        .padding(horizontal = 24.dp)) {
 
         Card(
             shape = RoundedCornerShape(8.dp),
@@ -244,7 +253,7 @@ fun AlbumTab(poule: Poule) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 24.dp)
     ) {
         Card(
             shape = RoundedCornerShape(8.dp),

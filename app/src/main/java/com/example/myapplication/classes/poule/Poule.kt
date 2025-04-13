@@ -28,6 +28,7 @@ data class Poule(
     var evenements: List<Evenement> = listOf(),
 
     var dateDeces: String? = null,
+    var dateDecesPresumee: Boolean? = null,
     var causeDeces: String? = null,
     var causePresumee: Boolean = false,
 
