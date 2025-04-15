@@ -37,10 +37,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.example.myapplication.R
+import com.example.myapplication.components.BarChartSection
 import com.example.myapplication.firebase.ajouterDansFirestore
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.time.LocalDate
+import java.time.YearMonth
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -462,8 +464,27 @@ fun PonteTab(poule: Poule, onAjouterPonte: (String, Int, String?, String) -> Uni
     var pontes by remember { mutableStateOf<Map<String, Ponte>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
 
+    val currentYear = java.time.Year.now().toString()
+    val currentMonth = YearMonth.now().toString()
+
+    var statsMensuelles by remember { mutableStateOf(List(12) { 0L }) }
+    var statsAnnuelles by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
+
+
     // 🔄 Chargement des pontes Firestore
     LaunchedEffect(poule.id) {
+        val rawMensuelles = poule.statistiquesMensuelles ?: emptyMap()
+        val rawAnnuelles: Map<String, Int> = poule.statistiquesAnnuelles ?: emptyMap()
+
+        val moisFormates = listOf(
+            "2025-01", "2025-02", "2025-03", "2025-04",
+            "2025-05", "2025-06", "2025-07", "2025-08",
+            "2025-09", "2025-10", "2025-11", "2025-12"
+        )
+
+        statsMensuelles = moisFormates.map { (rawMensuelles[it] ?: 0).toLong() }
+        statsAnnuelles = rawAnnuelles.mapValues { it.value.toLong() }.toSortedMap()
+
         firestore.collection("poules")
             .document(userId)
             .collection("liste")
@@ -554,6 +575,26 @@ fun PonteTab(poule: Poule, onAjouterPonte: (String, Int, String?, String) -> Uni
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                val mois = listOf("Jan", "Fév", "Mar", "Avr", "Mai", "Jui", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc")
+                BarChartSection(
+                    title = "Production mensuelle",
+                    labels = mois,
+                    values = statsMensuelles.map { it.toFloat() }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                val decadeStart = (currentYear.toInt() / 10) * 10
+                val annees = (decadeStart..decadeStart + 9).map { it.toString() }
+
+                BarChartSection(
+                    title = "Production annuelle",
+                    labels = annees,
+                    values = annees.map { statsAnnuelles[it] ?: 0L }.map { it.toFloat() }
+                )
+
             }
         }
     }

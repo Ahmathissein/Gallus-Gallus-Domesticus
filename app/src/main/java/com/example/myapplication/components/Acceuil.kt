@@ -80,7 +80,7 @@ fun Acceuil (onNavigate: (String) -> Unit) {
                 item {
                     AccueilCard(
                         icon = rememberVectorPainter(Icons.Default.BarChart),
-                        title = "Statistiques de pontes",
+                        title = "Statistiques globales",
                         description = "Analyse de production d'oeufs",
                         onClick = {
                             onNavigate("stats")
