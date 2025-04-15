@@ -25,7 +25,9 @@ import java.util.UUID
 import com.google.firebase.firestore.FirebaseFirestore
 import android.content.ContentValues
 import android.content.Context
+import android.os.Build
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -647,6 +649,7 @@ fun String.isValideYearMonth(): Boolean {
     return this.matches(Regex("""\d{4}-\d{2}"""))
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun String.isValidDateOrEmpty(): Boolean {
     return this.isBlank() || try {
         LocalDate.parse(this)

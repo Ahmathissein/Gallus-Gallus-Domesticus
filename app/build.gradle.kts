@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.myapplication"
-        minSdk = 26
+        minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -66,6 +66,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("androidx.navigation:navigation-compose:2.7.5")
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("androidx.compose.material3:material3:1.2.0")
+
 
     // TODO: Add the dependencies for Firebase products you want to use
 

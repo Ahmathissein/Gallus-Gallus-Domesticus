@@ -32,7 +32,7 @@ data class Poule(
     var causeDeces: String? = null,
     var causePresumee: Boolean = false,
 
-    var historiquePonte: Map<String, Boolean> = emptyMap(),
+    var pontes: Map<String, Ponte> = emptyMap(),
     var statistiquesMensuelles: Map<String, Int> = emptyMap(),
     var statistiquesAnnuelles: Map<String, Int> = emptyMap(),
 

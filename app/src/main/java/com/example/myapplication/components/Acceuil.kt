@@ -69,7 +69,7 @@ fun Acceuil (onNavigate: (String) -> Unit) {
                 item {
                     AccueilCard(
                         icon = painterResource(id = R.drawable.chicken),
-                        title = "Fiches             d'identités",
+                        title = "Mes Poules",
                         description = "Informations pour chaque gallinacé",
                         onClick = {
                             onNavigate("ficheIdentite")
@@ -83,7 +83,7 @@ fun Acceuil (onNavigate: (String) -> Unit) {
                         title = "Statistiques de pontes",
                         description = "Analyse de production d'oeufs",
                         onClick = {
-                            onNavigate("sats")
+                            onNavigate("stats")
                         }
                     )
                 }

@@ -1,10 +1,12 @@
 package com.example.myapplication
 
 import Header
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,9 +24,11 @@ import kotlinx.coroutines.launch
 import com.example.myapplication.components.*
 import com.example.myapplication.model.EvenementScreen
 import com.example.myapplication.model.FicheIdentite
+import com.example.myapplication.model.StatsScreen
 import com.google.gson.Gson
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -99,6 +103,10 @@ class MainActivity : ComponentActivity() {
 
                                 composable("evenements") {
                                     EvenementScreen(onMenuClick = { scope.launch { drawerState.open() } })
+                                }
+
+                                composable("stats") {
+                                    StatsScreen(onMenuClick = { scope.launch { drawerState.open() } })
                                 }
 
                                 composable("detailPoule") {
