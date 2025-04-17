@@ -69,8 +69,8 @@ fun Acceuil (onNavigate: (String) -> Unit) {
                 item {
                     AccueilCard(
                         icon = painterResource(id = R.drawable.chicken),
-                        title = "Mes Poules",
-                        description = "Informations pour chaque gallinacé",
+                        title = "Mes\nPoules",
+                        description = "Informations pour\nchaque gallinacé",
                         onClick = {
                             onNavigate("ficheIdentite")
                         }
@@ -79,9 +79,21 @@ fun Acceuil (onNavigate: (String) -> Unit) {
 
                 item {
                     AccueilCard(
+                        icon = painterResource(id = R.drawable.eggs),
+                        title = "Saisie\nde ponte",
+                        description = "Ajouter les œufs pondus par jour",
+                        onClick = {
+                            onNavigate("saisiePonte")
+                        }
+                    )
+                }
+
+
+                item {
+                    AccueilCard(
                         icon = rememberVectorPainter(Icons.Default.BarChart),
                         title = "Statistiques globales",
-                        description = "Analyse de production d'oeufs",
+                        description = "Analyse de production d'oeufs du poulailler",
                         onClick = {
                             onNavigate("stats")
                         }

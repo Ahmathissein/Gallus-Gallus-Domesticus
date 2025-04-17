@@ -14,14 +14,18 @@ class AuthActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        // recupérer l'utilisateur courant
         val currentUser = auth.currentUser
+        //s'il existe :
         if (currentUser != null) {
+            //rechargement pour vérifier la validité de sa session
             currentUser.reload().addOnCompleteListener {task ->
                 if (task.isSuccessful) {
-                    // Utilisateur déjà connecté → Page d'accueil directement
+                    // Utilisateur déjà connecté, redirection vers la Page d'accueil directement
                     startActivity(Intent(this, com.example.myapplication.MainActivity::class.java))
                     finish()
                 }else{
+                    //le déconnecter
                     auth.signOut()
                 }
             }
@@ -32,6 +36,7 @@ class AuthActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MyApplicationTheme {
+                //ouvrir l'écran d'authentification
                 AuthScreen(onAuthSuccess = {
                     startActivity(Intent(this, com.example.myapplication.MainActivity::class.java))
                     finish()

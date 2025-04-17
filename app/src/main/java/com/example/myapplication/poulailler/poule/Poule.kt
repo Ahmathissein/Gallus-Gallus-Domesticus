@@ -1,9 +1,28 @@
-package com.example.myapplication.classes.poule
+package com.example.myapplication.poulailler.poule
 
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.IgnoreExtraProperties
 import java.time.*
 import java.util.*
+
+
+data class Photo(
+    val uri: String = "",
+    val date: String = ""
+)
+
+data class Evenement(
+    val date: String = "",
+    val type: String = "", // ex : "maladie", "reproduction", "couvaison"
+    val description: String = ""
+)
+
+data class Ponte(
+    val date: String? = null,
+    val nbOeufs: Int? = null,
+    val commentaire: String? = null
+)
+
 
 
 @IgnoreExtraProperties

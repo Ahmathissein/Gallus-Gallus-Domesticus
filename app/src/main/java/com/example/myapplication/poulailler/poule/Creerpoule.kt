@@ -1,4 +1,4 @@
-package com.example.myapplication.classes.poule
+package com.example.myapplication.poulailler.poule
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.draw.clip
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CreerPoule(
     pouleExistante: Poule? = null,

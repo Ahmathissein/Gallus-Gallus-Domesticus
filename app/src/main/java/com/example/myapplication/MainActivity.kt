@@ -13,18 +13,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.myapplication.classes.poule.CreerPoule
-import com.example.myapplication.classes.poule.DetailPouleScreen
-import com.example.myapplication.classes.poule.Poule
+import com.example.myapplication.poulailler.poule.CreerPoule
+import com.example.myapplication.poulailler.poule.DetailPouleScreen
+import com.example.myapplication.poulailler.poule.Poule
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
 import com.example.myapplication.components.*
-import com.example.myapplication.model.EvenementScreen
-import com.example.myapplication.model.FicheIdentite
-import com.example.myapplication.model.StatsScreen
+import com.example.myapplication.screens.*
 import com.google.gson.Gson
 
 class MainActivity : ComponentActivity() {
@@ -97,10 +94,6 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-
-
-
-
                                 composable("evenements") {
                                     EvenementScreen(onMenuClick = { scope.launch { drawerState.open() } })
                                 }
@@ -113,6 +106,18 @@ class MainActivity : ComponentActivity() {
                                     selectedPoule?.let { poule ->
                                         DetailPouleScreen(poule = poule, navController = navController)
                                     }
+                                }
+
+                                composable("production") {
+                                    ProductionScreen(onMenuClick = { scope.launch { drawerState.open() } })
+                                }
+
+                                composable("rentabilite") {
+                                    RentabiliteScreen(onMenuClick = { scope.launch { drawerState.open() } })
+                                }
+
+                                composable("saisiePonte") {
+                                    SaisiePonte()
                                 }
                             }
 

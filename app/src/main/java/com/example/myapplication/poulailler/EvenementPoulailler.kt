@@ -1,4 +1,4 @@
-package com.example.myapplication.classes.poulailler
+package com.example.myapplication.poulailler
 
 data class EvenementPoulailler(
     val id: String = "",

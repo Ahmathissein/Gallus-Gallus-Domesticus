@@ -14,9 +14,10 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AuthScreen(onAuthSuccess: () -> Unit) {
     var tabIndex by remember { mutableStateOf(0) }
+    //deux onglets dans le même écran
     val tabs = listOf("Connexion", "Inscription")
 
-    // Fond général beige clair
+    // Fond général
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -71,7 +72,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
             when (tabIndex) {
                 0 -> LoginForm(onAuthSuccess)
                 1 -> SignupForm(
-                    onAuthSuccess = { /* ne fait rien ici */ },
+                    onAuthSuccess = {  },
                     switchToLoginTab = { tabIndex = 0 }
                 )
             }

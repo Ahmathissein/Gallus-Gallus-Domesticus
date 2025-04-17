@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.pow
 
 @Composable
 fun BarChartSection(
@@ -24,7 +25,14 @@ fun BarChartSection(
     maxHeight: Dp = 200.dp
 ) {
     val barColor = Color(0xCC9C5700)
-    val maxValue = values.maxOrNull()?.coerceAtLeast(1f) ?: 1f
+    val rawMax = values.maxOrNull()?.coerceAtLeast(1f) ?: 1f
+
+// 🔢 On arrondit le max à une valeur "ronde"
+    val exponent = kotlin.math.floor(kotlin.math.log10(rawMax.toDouble())).toInt()
+    val base = 10.0.pow(exponent).toFloat()
+    val roundedMax = ((rawMax / base).toInt() + 1) * base
+
+    val maxValue = roundedMax
 
     Column {
         Text(
@@ -76,16 +84,32 @@ fun BarChartSection(
                 verticalAlignment = Alignment.Bottom
             ) {
                 values.forEach { value ->
-                    val barHeight = (value / maxValue) * maxHeight.value
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Spacer(
-                            modifier = Modifier
-                                .height(barHeight.dp)
-                                .width(16.dp)
-                                .background(barColor, RoundedCornerShape(4.dp))
-                        )
+                    if (value > 0f) {
+                        val barHeight = (value / maxValue) * maxHeight.value
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom
+                        ) {
+                            Text(
+                                text = value.toInt().toString(),
+                                fontSize = 10.sp,
+                                color = Color.DarkGray,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                            Spacer(
+                                modifier = Modifier
+                                    .height(barHeight.dp)
+                                    .width(16.dp)
+                                    .background(barColor, RoundedCornerShape(4.dp))
+                            )
+                        }
+                    } else {
+                        // espace vide pour garder l'espacement homogène
+                        Spacer(modifier = Modifier.width(16.dp))
                     }
                 }
+
+
             }
         }
 

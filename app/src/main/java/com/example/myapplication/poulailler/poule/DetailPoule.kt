@@ -1,4 +1,4 @@
-package com.example.myapplication.classes.poule
+package com.example.myapplication.poulailler.poule
 
 import Header
 import android.net.Uri
@@ -50,7 +50,7 @@ import java.time.YearMonth
 @Composable
 fun DetailPouleScreen(poule: Poule, navController: NavController) {
     var selectedTabIndex by remember { mutableStateOf(0) }
-    val tabTitles = listOf("Historique de ponte", "Album", "Événements")
+    val tabTitles = listOf("Statistiques de ponte", "Album", "Événements")
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -175,7 +175,7 @@ fun DetailPouleScreen(poule: Poule, navController: NavController) {
                         onClick = { selectedTabIndex = index },
                         icon = {
                             when (index) {
-                                0 -> Icon(Icons.Filled.History, contentDescription = null)
+                                0 -> Icon(Icons.Filled.BarChart, contentDescription = null)
                                 1 -> Icon(Icons.Default.PhotoLibrary, contentDescription = null)
                                 2 -> Icon(Icons.Default.Event, contentDescription = null)
 
@@ -197,21 +197,7 @@ fun DetailPouleScreen(poule: Poule, navController: NavController) {
 
         // 🟢 Onglet actif
         when (selectedTabIndex) {
-            0 -> PonteTab(poule) { documentId, nb, com, dateStr ->
-                ajouterDansFirestore(
-                    pouleId = poule.id,
-                    documentId = documentId,      // ex: "2025-04-13_1713209376"
-                    date = dateStr,               // ex: "2025-04-13"
-                    nbOeufs = nb,
-                    commentaire = com,
-                    onSuccess = {
-                        println("Ponte ajoutée avec succès")
-                    },
-                    onError = {
-                        println("Erreur ajout ponte : ${it.message}")
-                    }
-                )
-            }
+            0 -> PonteTab(poule)
             1 -> AlbumTab(poule)
             2 -> EvenementTab(poule)
         }
@@ -457,21 +443,11 @@ fun AlbumTab(poule: Poule) {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun PonteTab(poule: Poule, onAjouterPonte: (String, Int, String?, String) -> Unit) {
-    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-    val firestore = FirebaseFirestore.getInstance()
-
-    var pontes by remember { mutableStateOf<Map<String, Ponte>>(emptyMap()) }
-    var isLoading by remember { mutableStateOf(true) }
-
+fun PonteTab(poule: Poule) {
     val currentYear = java.time.Year.now().toString()
-    val currentMonth = YearMonth.now().toString()
-
     var statsMensuelles by remember { mutableStateOf(List(12) { 0L }) }
     var statsAnnuelles by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
 
-
-    // 🔄 Chargement des pontes Firestore
     LaunchedEffect(poule.id) {
         val rawMensuelles = poule.statistiquesMensuelles ?: emptyMap()
         val rawAnnuelles: Map<String, Int> = poule.statistiquesAnnuelles ?: emptyMap()
@@ -484,188 +460,40 @@ fun PonteTab(poule: Poule, onAjouterPonte: (String, Int, String?, String) -> Uni
 
         statsMensuelles = moisFormates.map { (rawMensuelles[it] ?: 0).toLong() }
         statsAnnuelles = rawAnnuelles.mapValues { it.value.toLong() }.toSortedMap()
-
-        firestore.collection("poules")
-            .document(userId)
-            .collection("liste")
-            .document(poule.id)
-            .collection("pontes")
-            .get()
-            .addOnSuccessListener { snapshot ->
-                val loaded = snapshot.documents.associate { doc ->
-                    val date = doc.getString("date") ?: doc.id
-                    val nb = doc.getLong("nbOeufs")?.toInt() ?: 0
-                    val com = doc.getString("commentaire")
-                    date to Ponte(date, nb, com)
-                }
-                pontes = loaded
-                isLoading = false
-            }
     }
 
-    val today = LocalDate.now()
-    val context = LocalContext.current
-    val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-
-    var selectedDate by remember { mutableStateOf(today) }
-    var nbOeufs by remember { mutableStateOf("") }
-    var commentaire by remember { mutableStateOf("") }
-    var showDialog by remember { mutableStateOf(false) }
-
-    val datePickerDialog = remember {
-        android.app.DatePickerDialog(
-            context,
-            { _, year, month, day ->
-                selectedDate = LocalDate.of(year, month + 1, day)
-            },
-            today.year,
-            today.monthValue - 1,
-            today.dayOfMonth
-        )
-    }
-
-    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-        Card(
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth()
+    // 🃏 Carte blanche autour des graphiques
+    Card(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Ponte de ${poule.nom}", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF5D4037))
-                Text("Enregistrements des œufs pondus", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                Spacer(Modifier.height(16.dp))
+            val mois = listOf("Jan", "Fév", "Mar", "Avr", "Mai", "Jui", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc")
 
-                Button(onClick = { showDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xCC9C5700)), modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Ajouter une ponte")
-                }
+            BarChartSection(
+                title = "Production mensuelle",
+                labels = mois,
+                values = statsMensuelles.map { it.toFloat() }
+            )
 
-                Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-                when {
-                    isLoading -> CircularProgressIndicator()
-                    pontes.isEmpty() -> Text("Aucune ponte enregistrée", color = Color.Gray)
-                    else -> {
-                        pontes.toSortedMap(reverseOrder()).forEach { (date, ponte) ->
-                            Card(
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF9F4E7)),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.eggs),
-                                        contentDescription = "Icône œuf",
-                                        tint = Color(0xFF9C5700),
-                                        modifier = Modifier.size(40.dp).padding(end = 12.dp)
-                                    )
-                                    Column {
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text(date, fontWeight = FontWeight.Bold, color = Color(0xFF5D4037))
-                                            Text("${ponte.nbOeufs} œufs", color = Color.Black)
-                                        }
-                                        if (!ponte.commentaire.isNullOrBlank()) {
-                                            Spacer(Modifier.height(4.dp))
-                                            Text(ponte.commentaire ?: "", style = MaterialTheme.typography.bodySmall)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
+            val decadeStart = (currentYear.toInt() / 10) * 10
+            val annees = (decadeStart..decadeStart + 9).map { it.toString() }
 
-                val mois = listOf("Jan", "Fév", "Mar", "Avr", "Mai", "Jui", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc")
-                BarChartSection(
-                    title = "Production mensuelle",
-                    labels = mois,
-                    values = statsMensuelles.map { it.toFloat() }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                val decadeStart = (currentYear.toInt() / 10) * 10
-                val annees = (decadeStart..decadeStart + 9).map { it.toString() }
-
-                BarChartSection(
-                    title = "Production annuelle",
-                    labels = annees,
-                    values = annees.map { statsAnnuelles[it] ?: 0L }.map { it.toFloat() }
-                )
-
-            }
+            BarChartSection(
+                title = "Production annuelle",
+                labels = annees,
+                values = annees.map { statsAnnuelles[it] ?: 0L }.map { it.toFloat() }
+            )
         }
-    }
-
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Ajouter une ponte") },
-            text = {
-                Column {
-                    Text("Date sélectionnée : ${selectedDate.format(dateFormatter)}")
-                    Spacer(Modifier.height(4.dp))
-                    Button(
-                        onClick = { datePickerDialog.show() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C5700))
-                    ) { Text("Choisir une date", color = Color.White) }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = nbOeufs,
-                        onValueChange = { nbOeufs = it },
-                        label = { Text("Nombre d'œufs") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = commentaire,
-                        onValueChange = { commentaire = it },
-                        label = { Text("Commentaire (facultatif)") }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val nb = nbOeufs.toIntOrNull()
-                    if (nb != null && nb >= 0) {
-                        val dateStr = selectedDate.format(dateFormatter)
-                        val docId = "${dateStr}_${System.currentTimeMillis()}"
-                        onAjouterPonte(docId, nb, commentaire.ifBlank { null }, dateStr)
-
-                        // 🔁 Recharge les pontes après ajout
-                        firestore.collection("poules")
-                            .document(userId)
-                            .collection("liste")
-                            .document(poule.id)
-                            .collection("pontes")
-                            .get()
-                            .addOnSuccessListener { snapshot ->
-                                pontes = snapshot.documents.associate { doc ->
-                                    val docDate = doc.getString("date") ?: doc.id
-                                    val n = doc.getLong("nbOeufs")?.toInt() ?: 0
-                                    val c = doc.getString("commentaire")
-                                    docDate to Ponte(docDate, n, c)
-                                }
-                            }
-
-                        showDialog = false
-                        nbOeufs = ""
-                        commentaire = ""
-                    }
-                }) {
-                    Text("Valider")
-                }
-            }
-            ,
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Annuler")
-                }
-            }
-        )
     }
 }

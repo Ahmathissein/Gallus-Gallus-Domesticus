@@ -1,6 +1,5 @@
-package com.example.myapplication.model
+package com.example.myapplication.screens
 
-import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
@@ -22,9 +21,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.example.myapplication.classes.poule.Poule
+import com.example.myapplication.poulailler.poule.Poule
 import java.time.format.DateTimeFormatter
-import com.google.gson.Gson
 
 
 @Composable
@@ -96,7 +94,7 @@ fun FicheIdentite(onAjouterPoule: () -> Unit, onVoirFiche: (Poule) -> Unit) {
 }
 
 @Composable
-fun PouleCard(poule: Poule,  onVoirFiche: (Poule) -> Unit) {
+fun PouleCard(poule: Poule, onVoirFiche: (Poule) -> Unit) {
     val context = LocalContext.current
     Card(
         modifier = Modifier.fillMaxWidth(),
