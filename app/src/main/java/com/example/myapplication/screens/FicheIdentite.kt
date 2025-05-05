@@ -1,5 +1,7 @@
 package com.example.myapplication.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
@@ -25,6 +27,7 @@ import com.example.myapplication.poulailler.poule.Poule
 import java.time.format.DateTimeFormatter
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun FicheIdentite(onAjouterPoule: () -> Unit, onVoirFiche: (Poule) -> Unit) {
     val firestore = FirebaseFirestore.getInstance()
@@ -93,6 +96,7 @@ fun FicheIdentite(onAjouterPoule: () -> Unit, onVoirFiche: (Poule) -> Unit) {
 
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun PouleCard(poule: Poule, onVoirFiche: (Poule) -> Unit) {
     val context = LocalContext.current
@@ -113,11 +117,26 @@ fun PouleCard(poule: Poule, onVoirFiche: (Poule) -> Unit) {
                 contentScale = ContentScale.Crop
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = poule.nom,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color(0xCC9C5700)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = poule.nom,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xCC9C5700),
+                    modifier = Modifier.weight(1f)
+                )
+                if (poule.estVendue) {
+                    Text(
+                        text = "Vendue",
+                        color = Color.Red,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
             Text("Variété : ${poule.variete ?: "Non spécifiée"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
             poule.dateNaissance?.let {

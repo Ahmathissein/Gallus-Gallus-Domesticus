@@ -72,10 +72,15 @@ fun SaisiePonte() {
         firestore.collection("poules").document(userId).collection("liste")
             .get()
             .addOnSuccessListener { snapshot ->
-                poules = snapshot.documents.mapNotNull { it.toObject(Poule::class.java) }
+                val toutes = snapshot.documents.mapNotNull { it.toObject(Poule::class.java) }
+                poules = toutes.filter { it.estVendue != true }
+                println(" Toutes les poules : ${toutes.map { it.nom to it.estVendue }}")
+                println(" Poules non vendues : ${poules.map { it.nom }}")
                 isLoading = false
             }
     }
+
+
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -177,9 +182,14 @@ fun SaisiePonte() {
                             Checkbox(
                                 checked = aPondu,
                                 onCheckedChange = {
-                                    val newNbOeufs = if (it && (nbOeufs.toIntOrNull() ?: 0) == 0) "1" else nbOeufs
+                                    val newNbOeufs = if (it) {
+                                        if ((nbOeufs.toIntOrNull() ?: 0) == 0) "1" else nbOeufs
+                                    } else {
+                                        "0"
+                                    }
                                     states[poule.id] = Triple(it, newNbOeufs, commentaire)
-                                },
+                                }
+                                ,
                                 colors = CheckboxDefaults.colors(checkedColor = Color(0xCC9C5700)),
                                 modifier = Modifier.weight(1f)
                             )

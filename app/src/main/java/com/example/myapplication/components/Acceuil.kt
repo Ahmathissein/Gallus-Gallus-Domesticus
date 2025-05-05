@@ -114,10 +114,10 @@ fun Acceuil (onNavigate: (String) -> Unit) {
                 item {
                     AccueilCard(
                         icon = rememberVectorPainter(Icons.Default.AttachMoney),
-                        title = "Coûts de production",
+                        title = "Vente de produits",
                         description = "Traces des dépenses liées à l'élevage",
                         onClick = {
-                            onNavigate("production")
+                            onNavigate("vente")
                         }
                     )
                 }

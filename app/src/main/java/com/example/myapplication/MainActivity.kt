@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import Header
+import VenteScreen
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -108,8 +109,8 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
-                                composable("production") {
-                                    ProductionScreen(onMenuClick = { scope.launch { drawerState.open() } })
+                                composable("vente") {
+                                    VenteScreen(onMenuClick = { scope.launch { drawerState.open() } })
                                 }
 
                                 composable("rentabilite") {

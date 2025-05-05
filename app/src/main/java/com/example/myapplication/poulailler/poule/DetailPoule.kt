@@ -214,13 +214,18 @@ fun EvenementTab(poule: Poule) {
     val context = LocalContext.current
     val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     var showDialog by remember { mutableStateOf(false) }
+    var showConfirmDelete by remember { mutableStateOf(false) }
+    var evenementASupprimer by remember { mutableStateOf<Evenement?>(null) }
+
+    var showConfirmEdit by remember { mutableStateOf(false) }
+
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var type by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
     var evenements by remember { mutableStateOf<List<Evenement>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-
+    var evenementEnCoursId by remember { mutableStateOf<String?>(null) }
     val datePickerDialog = remember {
         android.app.DatePickerDialog(
             context,
@@ -282,13 +287,40 @@ fun EvenementTab(poule: Poule) {
                                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                             ) {
                                 Column(Modifier.padding(12.dp)) {
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(evt.type, fontWeight = FontWeight.Bold, color = Color(0xFF5D4037))
-                                        Text(evt.date, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(evt.type, fontWeight = FontWeight.Bold, color = Color(0xFF5D4037))
+                                            Text(evt.date, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                        }
+
+                                        Row {
+                                            IconButton(onClick = {
+                                                selectedDate = LocalDate.parse(evt.date)
+                                                type = evt.type
+                                                description = evt.description
+                                                evenementEnCoursId = "${evt.date}_${System.currentTimeMillis()}" // temporaire
+                                                showDialog = true
+                                            }) {
+                                                Icon(Icons.Default.Edit, contentDescription = "Modifier")
+                                            }
+
+                                            IconButton(onClick = {
+                                                evenementASupprimer = evt
+                                                showConfirmDelete = true
+                                            }) {
+                                                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                                            }
+                                        }
                                     }
+
                                     Spacer(Modifier.height(4.dp))
                                     Text(evt.description, style = MaterialTheme.typography.bodySmall)
                                 }
+
                             }
                         }
                     }
@@ -297,11 +329,13 @@ fun EvenementTab(poule: Poule) {
         }
     }
 
+
+
     // 🔘 Formulaire ajout événement
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("Nouvel événement") },
+            title = { Text(if (evenementEnCoursId != null) "Modifier l’événement" else "Nouvel événement") },
             text = {
                 Column {
                     Text("Date sélectionnée : ${selectedDate.format(dateFormatter)}")
@@ -318,8 +352,55 @@ fun EvenementTab(poule: Poule) {
             confirmButton = {
                 TextButton(onClick = {
                     val dateStr = selectedDate.format(dateFormatter)
-                    val docId = "${dateStr}_${System.currentTimeMillis()}"
-                    val evt = mapOf(
+
+                    val evtData = mapOf(
+                        "date" to dateStr,
+                        "type" to type,
+                        "description" to description
+                    )
+
+                    if (evenementEnCoursId != null) {
+                        showConfirmEdit = true  // 👉 active la boîte de confirmation
+                    } else {
+                        val docId = "${dateStr}_${System.currentTimeMillis()}"
+                        firestore.collection("poules")
+                            .document(userId)
+                            .collection("liste")
+                            .document(poule.id)
+                            .collection("evenements")
+                            .document(docId)
+                            .set(evtData)
+                            .addOnSuccessListener {
+                                reloadEvenements(poule.id, firestore, userId) { evenements = it }
+                            }
+
+                        showDialog = false
+                        type = ""
+                        description = ""
+                    }
+                }) {
+                    Text("Valider")
+                }
+
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
+    // ✏️ Confirmation modification
+    if (showConfirmEdit && evenementEnCoursId != null) {
+        AlertDialog(
+            onDismissRequest = { showConfirmEdit = false },
+            title = { Text("Confirmation") },
+            text = { Text("Enregistrer les modifications ?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val dateStr = selectedDate.format(dateFormatter)
+                    val evtData = mapOf(
                         "date" to dateStr,
                         "type" to type,
                         "description" to description
@@ -330,40 +411,79 @@ fun EvenementTab(poule: Poule) {
                         .collection("liste")
                         .document(poule.id)
                         .collection("evenements")
-                        .document(docId)
-                        .set(evt)
+                        .document(evenementEnCoursId!!)
+                        .set(evtData)
                         .addOnSuccessListener {
-                            // Recharge la liste
-                            firestore.collection("poules")
-                                .document(userId)
-                                .collection("liste")
-                                .document(poule.id)
-                                .collection("evenements")
-                                .get()
-                                .addOnSuccessListener { snapshot ->
-                                    evenements = snapshot.documents.mapNotNull { doc ->
-                                        val date = doc.getString("date") ?: return@mapNotNull null
-                                        val type = doc.getString("type") ?: ""
-                                        val desc = doc.getString("description") ?: ""
-                                        Evenement(date, type, desc)
-                                    }.sortedByDescending { it.date }
-                                }
+                            evenementEnCoursId = null
+                            showConfirmEdit = false
+                            reloadEvenements(poule.id, firestore, userId) { evenements = it }
+                            showDialog = false
+                            type = ""
+                            description = ""
                         }
-
-                    showDialog = false
-                    type = ""
-                    description = ""
                 }) {
-                    Text("Valider")
+                    Text("Oui")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
+                TextButton(onClick = {
+                    showConfirmEdit = false
+                }) {
                     Text("Annuler")
                 }
             }
         )
     }
+
+    if (showConfirmDelete && evenementASupprimer != null) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDelete = false },
+            title = { Text("Supprimer l’événement") },
+            text = { Text("Voulez-vous vraiment supprimer cet événement ?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    firestore.collection("poules")
+                        .document(userId)
+                        .collection("liste")
+                        .document(poule.id)
+                        .collection("evenements")
+                        .whereEqualTo("date", evenementASupprimer!!.date)
+                        .whereEqualTo("type", evenementASupprimer!!.type)
+                        .whereEqualTo("description", evenementASupprimer!!.description)
+                        .get()
+                        .addOnSuccessListener { result ->
+                            val docId = result.documents.firstOrNull()?.id
+                            if (docId != null) {
+                                firestore.collection("poules")
+                                    .document(userId)
+                                    .collection("liste")
+                                    .document(poule.id)
+                                    .collection("evenements")
+                                    .document(docId)
+                                    .delete()
+                                    .addOnSuccessListener {
+                                        reloadEvenements(poule.id, firestore, userId) { evenements = it }
+                                    }
+                            }
+                            showConfirmDelete = false
+                            evenementASupprimer = null
+                        }
+                }) {
+                    Text("Supprimer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showConfirmDelete = false
+                    evenementASupprimer = null
+                }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
+
 }
 
 
@@ -496,4 +616,28 @@ fun PonteTab(poule: Poule) {
             )
         }
     }
+}
+
+
+fun reloadEvenements(
+    pouleId: String,
+    firestore: FirebaseFirestore,
+    userId: String,
+    onResult: (List<Evenement>) -> Unit
+) {
+    firestore.collection("poules")
+        .document(userId)
+        .collection("liste")
+        .document(pouleId)
+        .collection("evenements")
+        .get()
+        .addOnSuccessListener { snapshot ->
+            val events = snapshot.documents.mapNotNull { doc ->
+                val date = doc.getString("date") ?: return@mapNotNull null
+                val type = doc.getString("type") ?: ""
+                val desc = doc.getString("description") ?: ""
+                Evenement(date, type, desc)
+            }.sortedByDescending { it.date }
+            onResult(events)
+        }
 }

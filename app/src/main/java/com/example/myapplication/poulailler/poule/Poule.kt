@@ -24,6 +24,16 @@ data class Ponte(
 )
 
 
+data class Vente(
+    val id: String = "",
+    val type: String = "",
+    val date: String = "",
+    val quantite: Int? = null,
+    val prixUnitaire: Double = 0.0,
+    val client: String = "",
+    val pouleId: String? = null
+)
+
 
 @IgnoreExtraProperties
 data class Poule(
@@ -54,7 +64,7 @@ data class Poule(
     var pontes: Map<String, Ponte> = emptyMap(),
     var statistiquesMensuelles: Map<String, Int> = emptyMap(),
     var statistiquesAnnuelles: Map<String, Int> = emptyMap(),
-
+    var estVendue: Boolean = false,
     val creeLe: Timestamp = Timestamp.now(),
     var modifieLe: Timestamp = Timestamp.now()
 )
