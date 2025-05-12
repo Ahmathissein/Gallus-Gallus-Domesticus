@@ -3,12 +3,16 @@ package com.example.myapplication.auth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
@@ -27,8 +31,9 @@ fun SignupForm(
         var password by remember { mutableStateOf("") }
         var confirmPassword by remember { mutableStateOf("") }
         var message by remember { mutableStateOf("") }
+        var passwordVisible by remember { mutableStateOf(false) }
+        var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-        // Fond beige clair (comme l'accueil)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -36,7 +41,6 @@ fun SignupForm(
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Formulaire dans une Card blanche
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -73,9 +77,17 @@ fun SignupForm(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Mot de passe", color = Color(0xFF5D4037)) },
-                        visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (passwordVisible) "Masquer" else "Afficher"
+                                )
+                            }
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -84,9 +96,17 @@ fun SignupForm(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
                         label = { Text("Confirmer le mot de passe", color = Color(0xFF5D4037)) },
-                        visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (confirmPasswordVisible) "Masquer" else "Afficher"
+                                )
+                            }
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -94,7 +114,7 @@ fun SignupForm(
                     Button(
                         onClick = {
                             message = ""
-                            if (email.isBlank() || password.isBlank()) {
+                            if (email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
                                 message = "Veuillez remplir tous les champs."
                             } else if (password != confirmPassword) {
                                 message = "Les mots de passe ne correspondent pas."

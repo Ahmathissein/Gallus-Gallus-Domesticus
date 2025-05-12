@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 composable("rentabilite") {
-                                    RentabiliteScreen(onMenuClick = { scope.launch { drawerState.open() } })
+                                    RentabiliteScreen()
                                 }
 
                                 composable("saisiePonte") {

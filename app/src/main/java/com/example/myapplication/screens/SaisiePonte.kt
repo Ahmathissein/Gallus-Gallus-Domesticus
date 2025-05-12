@@ -64,7 +64,7 @@ fun SaisiePonte() {
         )
     }
 
-    val states = remember { mutableStateMapOf<String, Triple<Boolean, String, String>>() }
+    val states = remember { mutableStateMapOf<String, Triple<Boolean, Int, Int>>() }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -73,7 +73,9 @@ fun SaisiePonte() {
             .get()
             .addOnSuccessListener { snapshot ->
                 val toutes = snapshot.documents.mapNotNull { it.toObject(Poule::class.java) }
-                poules = toutes.filter { it.estVendue != true }
+                poules = toutes.filter {
+                    it.estVendue != true && it.dateDisparition == null && it.dateDeces == null
+                }
                 println(" Toutes les poules : ${toutes.map { it.nom to it.estVendue }}")
                 println(" Poules non vendues : ${poules.map { it.nom }}")
                 isLoading = false
@@ -146,14 +148,14 @@ fun SaisiePonte() {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("A pondu ?", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("Nombre d'œufs", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text("Mauvais œuf ?", modifier = Modifier.weight(2f), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("Commentaire", modifier = Modifier.weight(2f), fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                    }
+                        Text("Nombre d'œufs", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        }
                     Divider(color = Color(0xFFDDD0C8), thickness = 1.dp)
 
                     poules.forEach { poule ->
-                        val (aPondu, nbOeufs, commentaire) = states[poule.id] ?: Triple(false, "", "")
+                        val (aPondu, nbOeufs, nbOeufsMauvais) = states[poule.id] ?: Triple(false, 0, 0)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -181,18 +183,75 @@ fun SaisiePonte() {
 
                             Checkbox(
                                 checked = aPondu,
-                                onCheckedChange = {
-                                    val newNbOeufs = if (it) {
-                                        if ((nbOeufs.toIntOrNull() ?: 0) == 0) "1" else nbOeufs
-                                    } else {
-                                        "0"
-                                    }
-                                    states[poule.id] = Triple(it, newNbOeufs, commentaire)
-                                }
-                                ,
+                                onCheckedChange = { checked ->
+                                    val (_, _, oeufMauvais) = states[poule.id] ?: Triple(false, 0, 0)
+                                    val newNbOeufs: Int = if (checked) if (nbOeufs == 0) 1 else nbOeufs else 0
+                                    val newOeufMauvais: Int = if (!checked) 0 else oeufMauvais
+                                    states[poule.id] = Triple(checked, newNbOeufs, newOeufMauvais)
+
+                                },
                                 colors = CheckboxDefaults.colors(checkedColor = Color(0xCC9C5700)),
                                 modifier = Modifier.weight(1f)
                             )
+
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            val scope = rememberCoroutineScope() // à placer plus haut dans la composable si pas déjà fait
+
+                            val nbOeufsInt = nbOeufs
+                            val nbOeufsMauvais = if (states.containsKey(poule.id)) {
+                                states[poule.id]?.third?.toString()?.toIntOrNull() ?: 0
+                            } else 0
+
+                            Box(
+                                modifier = Modifier
+                                    .width(60.dp)
+                                    .height(45.dp)
+                                    .border(1.dp, Color.Red, RoundedCornerShape(6.dp))
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(text = nbOeufsMauvais.toString(), fontSize = 16.sp, color = Color.Red)
+                                    Column(
+                                        modifier = Modifier.padding(start = 6.dp),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                if (aPondu && nbOeufsMauvais < nbOeufsInt) {
+                                                    states[poule.id] = Triple(aPondu, nbOeufs, nbOeufsMauvais + 1)
+                                                }
+                                            },
+                                            enabled = aPondu && nbOeufsInt > 0,
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Plus")
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                if (aPondu && nbOeufsMauvais > 0) {
+                                                    states[poule.id] = Triple(aPondu, nbOeufs, nbOeufsMauvais - 1)
+                                                }
+                                            },
+                                            enabled = aPondu && nbOeufs > 0 && nbOeufsMauvais > 0,
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Moins")
+                                        }
+
+
+                                    }
+                                }
+                            }
+
+
+
+
 
 
                             Spacer(modifier = Modifier.width(12.dp))
@@ -209,46 +268,49 @@ fun SaisiePonte() {
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
-                                    Text(text = nbOeufs.ifBlank { "0" }, fontSize = 16.sp)
+                                    Text(text = nbOeufs.toString(), fontSize = 16.sp)
                                     Column(
                                         modifier = Modifier.padding(start = 6.dp),
                                         verticalArrangement = Arrangement.Center
                                     ) {
                                         IconButton(
                                             onClick = {
-                                                val current = nbOeufs.toIntOrNull() ?: 0
+                                                val current: Int = nbOeufs
                                                 val updated = current + 1
-                                                states[poule.id] = Triple(aPondu, updated.toString(), commentaire)
+                                                val newAPondu = true
+                                                val oeufMauvais = states[poule.id]?.third ?: 0
+                                                states[poule.id] = Triple(newAPondu, updated, oeufMauvais)
                                             },
                                             modifier = Modifier.size(20.dp)
                                         ) {
                                             Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Plus")
                                         }
+
+
                                         IconButton(
                                             onClick = {
-                                                val current = nbOeufs.toIntOrNull() ?: 0
-                                                val updated = maxOf(0, current - 1)
-                                                states[poule.id] = Triple(aPondu, updated.toString(), commentaire)
+                                                val current: Int = nbOeufs
+                                                val updated: Int = maxOf(0, current - 1)
+                                                val newAPondu: Boolean = updated > 0
+                                                val oeufMauvais = states[poule.id]?.third ?: 0
+                                                val newOeufMauvais: Int = minOf(oeufMauvais, updated)
+
+                                                states[poule.id] = Triple(newAPondu, updated, newOeufMauvais)
                                             },
                                             modifier = Modifier.size(20.dp)
                                         ) {
                                             Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Moins")
                                         }
+
+
+
                                     }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(12.dp)) // espace entre œufs et commentaire
 
-                            OutlinedTextField(
-                                value = commentaire,
-                                onValueChange = { states[poule.id] = Triple(aPondu, nbOeufs, it) },
-                                modifier = Modifier.weight(2f),
-                                placeholder = { Text("Commentaire optionnel", fontSize = 10.sp) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(6.dp),
-                                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
-                            )
+
+
                         }
                         Divider(color = Color(0xFFF0E8E0), thickness = 1.dp)
                     }
@@ -265,8 +327,7 @@ fun SaisiePonte() {
                     var saveMade = false
 
                     poules.forEach { poule ->
-                        val (aPondu, nbOeufsStr, commentaire) = states[poule.id] ?: return@forEach
-                        val nbOeufs = nbOeufsStr.toIntOrNull() ?: 0
+                        val (aPondu, nbOeufs, nbOeufsMauvais) = states[poule.id] ?: return@forEach
 
                         if (!aPondu && nbOeufs > 0) {
                             errorDetected = true
@@ -281,7 +342,7 @@ fun SaisiePonte() {
                         }
 
                         if (aPondu && nbOeufs > 0) {
-                            val ponte = Ponte(dateStr, nbOeufs, commentaire.ifBlank { null })
+                            val ponte = Ponte(dateStr, nbOeufs, nbOeufsMauvais)
                             val docRef = firestore.collection("poules")
                                 .document(userId)
                                 .collection("liste")

@@ -1,23 +1,29 @@
 package com.example.myapplication.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import java.time.LocalDate
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EvenementScreen(onMenuClick: () -> Unit) {
     val onglets = listOf("Tous", "Installation", "Entretien", "Réparations", "Prédation")
@@ -146,8 +152,9 @@ fun EvenementScreen(onMenuClick: () -> Unit) {
                                 type = evt["type"] as? String ?: "",
                                 date = evt["date"] as? String ?: "",
                                 description = evt["description"] as? String ?: "",
-                                onClickDetails = { /* Tu peux ouvrir un détail si tu veux */ }
+                                cout = (evt["cout"] as? Number)?.toDouble() ?: 0.0
                             )
+
                         }
                     }
                 }
@@ -181,6 +188,7 @@ fun EvenementScreen(onMenuClick: () -> Unit) {
 
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DialogCreerEvenement(
@@ -234,7 +242,41 @@ fun DialogCreerEvenement(
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description") })
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = date, onValueChange = { date = it }, label = { Text("Date (yyyy-MM-dd)") })
+                val context = LocalContext.current
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                val today = LocalDate.now()
+                if (date.isBlank()) date = today.format(formatter)
+
+                OutlinedTextField(
+                    value = date,
+                    onValueChange = {}, // champ non modifiable directement
+                    readOnly = true,
+                    label = { Text("Date de l’événement") },
+                    placeholder = { Text(today.format(formatter)) },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            val parsedDate = try {
+                                LocalDate.parse(date, formatter)
+                            } catch (e: Exception) {
+                                today
+                            }
+
+                            android.app.DatePickerDialog(
+                                context,
+                                { _, year, month, day ->
+                                    date = LocalDate.of(year, month + 1, day).format(formatter)
+                                },
+                                parsedDate.year,
+                                parsedDate.monthValue - 1,
+                                parsedDate.dayOfMonth
+                            ).show()
+                        }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Choisir une date")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = cout, onValueChange = { cout = it }, label = { Text("Coût (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
 
@@ -297,8 +339,10 @@ fun EvenementCard(
     type: String,
     date: String,
     description: String,
-    onClickDetails: () -> Unit
-) {
+    cout: Double,
+    onClickDetails: () -> Unit = {}
+)
+ {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -327,16 +371,6 @@ fun EvenementCard(
 
             BadgeType(type = type)
 
-            Spacer(Modifier.height(8.dp))
-
-            Button(
-                onClick = onClickDetails,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFE5CF)),
-                modifier = Modifier.align(Alignment.Start)
-            ) {
-                Text("Détails", color = Color(0xFF5D4037))
-            }
-
             Spacer(Modifier.height(4.dp))
 
             Text(
@@ -344,6 +378,14 @@ fun EvenementCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFF5D4037)
             )
+            Spacer(Modifier.height(4.dp))
+
+            Text(
+                text = "Coût : ${cout} €",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF5D4037)
+            )
+
         }
     }
 }

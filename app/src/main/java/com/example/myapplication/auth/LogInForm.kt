@@ -3,12 +3,16 @@ package com.example.myapplication.auth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
@@ -22,6 +26,7 @@ fun LoginForm(onAuthSuccess: () -> Unit) {
         var email by remember { mutableStateOf("") }
         var password by remember { mutableStateOf("") }
         var message by remember { mutableStateOf("") }
+        var passwordVisible by remember { mutableStateOf(false) }
 
         Box(
             modifier = Modifier
@@ -66,23 +71,39 @@ fun LoginForm(onAuthSuccess: () -> Unit) {
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Mot de passe", color = Color(0xFF5D4037)) },
-                        visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            val image = if (passwordVisible)
+                                Icons.Filled.Visibility
+                            else Icons.Filled.VisibilityOff
+
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = image,
+                                    contentDescription = if (passwordVisible) "Masquer" else "Afficher"
+                                )
+                            }
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Button(
                         onClick = {
-                            auth.signInWithEmailAndPassword(email, password)
-                                .addOnCompleteListener { task ->
-                                    if (task.isSuccessful) {
-                                        onAuthSuccess()
-                                    } else {
-                                        message = "Email ou mot de passe incorrect."
+                            if (email.isBlank() || password.isBlank()) {
+                                message = "Veuillez remplir tous les champs."
+                            } else {
+                                auth.signInWithEmailAndPassword(email, password)
+                                    .addOnCompleteListener { task ->
+                                        if (task.isSuccessful) {
+                                            onAuthSuccess()
+                                        } else {
+                                            message = "Email ou mot de passe incorrect."
+                                        }
                                     }
-                                }
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xCC9C5700)),
                         modifier = Modifier.fillMaxWidth()

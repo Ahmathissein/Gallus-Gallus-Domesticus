@@ -20,8 +20,9 @@ data class Evenement(
 data class Ponte(
     val date: String? = null,
     val nbOeufs: Int? = null,
-    val commentaire: String? = null
+    val nbOeufsMauvais: Int? = null // ✅ nouveau champ
 )
+
 
 
 data class Vente(
@@ -59,7 +60,14 @@ data class Poule(
     var dateDeces: String? = null,
     var dateDecesPresumee: Boolean? = null,
     var causeDeces: String? = null,
-    var causePresumee: Boolean = false,
+    var causePresumee: Boolean ?= null,
+
+    var dateDisparition: String? = null,
+    var dateDisparitionPresumee: Boolean? = null,
+    var causeDisparition: String? = null,
+    var causeDisparitionPresumee: Boolean ?= null,
+
+
 
     var pontes: Map<String, Ponte> = emptyMap(),
     var statistiquesMensuelles: Map<String, Int> = emptyMap(),

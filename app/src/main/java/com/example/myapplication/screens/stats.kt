@@ -2,6 +2,7 @@ package com.example.myapplication.screens
 
 import android.app.DatePickerDialog
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,13 +19,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.myapplication.components.BarChartParPouleSection
 import com.example.myapplication.components.BarChartSection
+import com.example.myapplication.components.StatsPontesTable
+import com.example.myapplication.poulailler.poule.Ponte
+import com.example.myapplication.poulailler.poule.Poule
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.time.*
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.tasks.await
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
@@ -38,81 +42,93 @@ fun StatsScreen(onMenuClick: () -> Unit) {
     var totalAnnee by remember { mutableStateOf(0L) }
     var moyenneParPoule by remember { mutableStateOf(0L) }
 
-    var valeursMensuelles by remember { mutableStateOf(List(12) { 0L }) }
-    var valeursAnnuelles by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
-
-    var startDateTotal by remember { mutableStateOf(LocalDate.now().withDayOfYear(1)) }
-    var endDateTotal by remember { mutableStateOf(LocalDate.now()) }
-
-    var startDateMoyenne by remember { mutableStateOf(LocalDate.now().withDayOfMonth(1)) }
-    var endDateMoyenne by remember { mutableStateOf(LocalDate.now()) }
-
-    val statsMensuellesTotales = remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
+    var selectedStartDate by remember { mutableStateOf(LocalDate.now().withDayOfYear(1)) }
+    var selectedEndDate by remember { mutableStateOf(LocalDate.now()) }
 
     val dataLoaded = remember { mutableStateOf(false) }
+    val statsParPoule = remember { mutableStateMapOf<String, Long>() }
+    val poulesList = remember { mutableStateListOf<Poule>() }
+    val pontesData = remember { mutableStateMapOf<String, Map<LocalDate, Ponte>>() }
+    var totalMauvaisOeufs by remember { mutableStateOf(0L) }
+    var expandedEggMenu by remember { mutableStateOf(false) }
 
+
+    // Chargement initial des stats
     LaunchedEffect(Unit) {
         val snapshot = firestore.collection("poules")
             .document(userId)
             .collection("liste")
             .get()
             .await()
-
-        val totales = mutableMapOf<String, Long>()
-        val annuelles = mutableMapOf<String, Long>()
-        var totalPoule = 0
+        dataLoaded.value = true
 
         snapshot.documents.forEach { doc ->
-            totalPoule++
-            val statsMensuelles = doc.get("statistiquesMensuelles") as? Map<String, Long> ?: emptyMap()
-            for ((mois, valeur) in statsMensuelles) {
-                totales[mois] = (totales[mois] ?: 0) + valeur
-            }
+            val poule = doc.toObject(Poule::class.java)
+            val id = doc.id
+            if (poule != null) {
+                poulesList.add(poule)
 
-            val statsAnnuelles = doc.get("statistiquesAnnuelles") as? Map<String, Long> ?: emptyMap()
-            for ((annee, valeur) in statsAnnuelles) {
-                annuelles[annee] = (annuelles[annee] ?: 0) + valeur
+                val pontes = doc.get("pontes") as? Map<String, Map<String, Any>> ?: emptyMap()
+                val parsed = pontes.mapNotNull { (dateStr, data) ->
+                    try {
+                        val date = LocalDate.parse(dateStr)
+                        val nb = (data["nbOeufs"] as? Long)?.toInt() ?: 0
+                        val bad = (data["nbOeufsMauvais"] as? Long)?.toInt() ?: 0
+                        date to Ponte(nbOeufs = nb, nbOeufsMauvais = bad)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }.toMap()
+
+                pontesData[id] = parsed
             }
         }
 
-        statsMensuellesTotales.value = totales
-        valeursAnnuelles = annuelles.toSortedMap()
-        dataLoaded.value = true // ✅ On indique que les données sont bien là
+        var mauvais = 0L
+        snapshot.documents.forEach { doc ->
+            val pontes = doc.get("pontes") as? Map<String, Map<String, Any>> ?: emptyMap()
+            for ((dateStr, data) in pontes) {
+                try {
+                    val date = LocalDate.parse(dateStr)
+                    if (!date.isBefore(selectedStartDate) && !date.isAfter(selectedEndDate)) {
+                        mauvais += (data["nbOeufsMauvais"] as? Long) ?: 0
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+        totalMauvaisOeufs = mauvais
+
     }
 
-
-    LaunchedEffect(startDateTotal, endDateTotal, dataLoaded.value) {
+    // Recalculs quand la plage de dates change
+    LaunchedEffect(selectedStartDate, selectedEndDate, dataLoaded.value) {
         if (dataLoaded.value) {
-            val moisDebut = YearMonth.from(startDateTotal)
-            val moisFin = YearMonth.from(endDateTotal)
-            val stats = statsMensuellesTotales.value.filterKeys {
-                val ym = YearMonth.parse(it)
-                !ym.isBefore(moisDebut) && !ym.isAfter(moisFin)
-            }
-            totalAnnee = stats.values.sum()
-        }
-    }
+            // 🔢 Total œufs produits entre selectedStartDate et selectedEndDate
+            totalAnnee = pontesData.values.sumOf { pontesParDate ->
+                pontesParDate.filterKeys { date ->
+                    !date.isBefore(selectedStartDate) && !date.isAfter(selectedEndDate)
+                }.values.sumOf { (it.nbOeufs ?: 0).toLong() }
 
-    LaunchedEffect(startDateMoyenne, endDateMoyenne, dataLoaded.value) {
-        if (dataLoaded.value) {
-            val moisDebut = YearMonth.from(startDateMoyenne)
-            val moisFin = YearMonth.from(endDateMoyenne)
-            val stats = statsMensuellesTotales.value.filterKeys {
-                val ym = YearMonth.parse(it)
-                !ym.isBefore(moisDebut) && !ym.isAfter(moisFin)
             }
 
-            val snapshot = firestore.collection("poules")
-                .document(userId)
-                .collection("liste")
-                .get()
-                .await()
-            val nbPoules = snapshot.size()
-            val total = stats.values.sum()
-            moyenneParPoule = if (nbPoules > 0) total / nbPoules else 0
+            // 🔢 Moyenne par poule
+            val nbPoules = poulesList.size
+            moyenneParPoule = if (nbPoules > 0) totalAnnee / nbPoules else 0
+            val parPoule = mutableMapOf<String, Long>()
+            pontesData.forEach { (pouleId, pontesParDate) ->
+                val total = pontesParDate.filterKeys { date ->
+                    !date.isBefore(selectedStartDate) && !date.isAfter(selectedEndDate)
+                }.values.sumOf { (it.nbOeufs ?: 0).toLong() }
+
+
+                val nomPoule = poulesList.find { it.id == pouleId }?.nom ?: "Inconnue"
+                parPoule[nomPoule] = total
+            }
+            statsParPoule.clear()
+            statsParPoule.putAll(parPoule)
+
         }
     }
-
 
     Column(
         modifier = Modifier
@@ -130,120 +146,281 @@ fun StatsScreen(onMenuClick: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Carte 1 : Total œufs
-        println("TTTTTTTTTTTTTTTTTTTTTTTTTTotal annee ${totalAnnee}")
-        StatCardWithDatePicker(
-            value = totalAnnee,
-            label = "Œufs produits entre ${startDateTotal.format(formatter)}\n et ${endDateTotal.format(formatter)}",
-            onDateClick = {
-                selectDateRange(
-                    context = context,
-                    initialStart = startDateTotal,
-                    initialEnd = endDateTotal
-                ) { newStart, newEnd ->
-                    startDateTotal = newStart
-                    endDateTotal = newEnd
-                }
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Carte 2 : Moyenne œufs/poule
-        StatCardWithDatePicker(
-            value = moyenneParPoule,
-            label = "Moyenne œufs/poule entre ${startDateMoyenne.format(formatter)}\n et ${endDateMoyenne.format(formatter)}",
-            onDateClick = {
-                selectDateRange(
-                    context = context,
-                    initialStart = startDateMoyenne,
-                    initialEnd = endDateMoyenne
-                ) { newStart, newEnd ->
-                    startDateMoyenne = newStart
-                    endDateMoyenne = newEnd
-                }
-            }
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-        val currentYear = Year.now().toString()
-
-        val valeursMensuellesChart by remember {
-            derivedStateOf {
-                val moisFormates = listOf(
-                    "$currentYear-01", "$currentYear-02", "$currentYear-03", "$currentYear-04",
-                    "$currentYear-05", "$currentYear-06", "$currentYear-07", "$currentYear-08",
-                    "$currentYear-09", "$currentYear-10", "$currentYear-11", "$currentYear-12"
-                )
-                moisFormates.map { mois -> statsMensuellesTotales.value[mois] ?: 0L }
-            }
-        }
-
-
-        val mois = listOf("Jan", "Fév", "Mar", "Avr", "Mai", "Jui", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc")
-        BarChartSection(
-            title = "Production mensuelle",
-            labels = mois,
-            values = valeursMensuellesChart.map { it.toFloat() }
-        )
-
-        val decadeStart = (currentYear.toInt() / 10) * 10
-        val annees = (decadeStart..decadeStart + 9).map { it.toString() }
-
-        BarChartSection(
-            title = "Production annuelle",
-            labels = annees,
-            values = annees.map { annee -> valeursAnnuelles[annee] ?: 0L }.map { it.toFloat() }
-        )
-    }
-}
-
-
-// Carte avec icône calendrier à droite
-@Composable
-fun StatCardWithDatePicker(value: Long, label: String, onDateClick: () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(6.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
         ) {
-            Column {
-                Text(
-                    text = value.toString(),
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color(0xFF5D4037)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-            }
-
-            IconButton(onClick = onDateClick) {
+            IconButton(onClick = {
+                selectDateRange(context, selectedStartDate, selectedEndDate) { newStart, newEnd ->
+                    selectedStartDate = newStart
+                    selectedEndDate = newEnd
+                }
+            }) {
                 Icon(
                     imageVector = Icons.Default.DateRange,
-                    contentDescription = "Sélectionner la date",
+                    contentDescription = "Changer la période",
                     tint = Color(0xFF5D4037)
                 )
             }
         }
+
+        val optionsOeufs = listOf("Œufs produits", "Œufs mauvais", "Œufs bons")
+        var selectedOeufOption by remember { mutableStateOf(optionsOeufs[0]) }
+        val valeurOeuf = when (selectedOeufOption) {
+            "Œufs produits" -> totalAnnee
+            "Œufs mauvais" -> totalMauvaisOeufs
+            "Œufs bons" -> totalAnnee - totalMauvaisOeufs
+            else -> 0L
+        }
+        val optionsPoule = listOf("Enregistrées", "Vendues", "Disparues", "Mortes")
+        var selectedPouleOption by remember { mutableStateOf(optionsPoule[0]) }
+
+        val valeurPoules = when (selectedPouleOption) {
+            "Enregistrées" -> poulesList.size.toLong()
+            "Vendues" -> poulesList.count { it.estVendue }.toLong()
+            "Disparues" -> poulesList.count { it.dateDisparition != null }.toLong()
+            "Mortes" -> poulesList.count { it.dateDeces != null }.toLong()
+            else -> 0L
+        }
+
+        var expandedPouleMenu by remember { mutableStateOf(false) }
+
+        ExposedDropdownMenuBox(
+            expanded = expandedPouleMenu,
+            onExpandedChange = { expandedPouleMenu = !expandedPouleMenu }
+        ) {
+            OutlinedTextField(
+                readOnly = true,
+                value = selectedPouleOption,
+                onValueChange = {},
+                label = { Text("Type de poules") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPouleMenu)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = expandedPouleMenu,
+                onDismissRequest = { expandedPouleMenu = false }
+            ) {
+                optionsPoule.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            selectedPouleOption = option
+                            expandedPouleMenu = false
+                        }
+                    )
+                }
+            }
+        }
+
+        StatCardSimple(
+            value = valeurPoules,
+            label = "Nombre de poules ${selectedPouleOption.lowercase()}",
+            modifier = Modifier.fillMaxWidth()
+        )
+
+
+        Spacer(Modifier.height(8.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expandedEggMenu,
+            onExpandedChange = { expandedEggMenu = !expandedEggMenu }
+        ) {
+            OutlinedTextField(
+                readOnly = true,
+                value = selectedOeufOption,
+                onValueChange = {},
+                label = { Text("Type d'œufs") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEggMenu)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = expandedEggMenu,
+                onDismissRequest = { expandedEggMenu = false }
+            ) {
+                optionsOeufs.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            selectedOeufOption = option
+                            expandedEggMenu = false
+                        }
+                    )
+                }
+            }
+        }
+
+
+        StatCardSimple(
+            value = valeurOeuf,
+            label = buildString {
+                append("${selectedOeufOption} entre ${selectedStartDate.format(formatter)} et ${selectedEndDate.format(formatter)}")
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+
+        StatCardSimple(
+            value = moyenneParPoule,
+            label = "Moyenne œufs/poule entre ${selectedStartDate.format(formatter)}\n et ${selectedEndDate.format(formatter)}"
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        val graphOptions = listOf("Production individuelle", "Par poule", "Mensuel", "Annuel")
+        var selectedGraphOption by remember { mutableStateOf(graphOptions[0]) }
+        var expandedGraphMenu by remember { mutableStateOf(false) }
+
+        Text(
+            "Graphique de production",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = Color(0xFF5D4037),
+            modifier = Modifier.padding(top = 24.dp)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        ExposedDropdownMenuBox(expanded = expandedGraphMenu, onExpandedChange = { expandedGraphMenu = !expandedGraphMenu }) {
+            OutlinedTextField(
+                readOnly = true,
+                value = selectedGraphOption,
+                onValueChange = {},
+                label = { Text("Choisir le graphique") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGraphMenu) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = expandedGraphMenu,
+                onDismissRequest = { expandedGraphMenu = false }
+            ) {
+                graphOptions.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            selectedGraphOption = option
+                            expandedGraphMenu = false
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        val currentYear = Year.now().toString()
+        val valeursMensuellesChart by remember(selectedStartDate, selectedEndDate, pontesData) {
+            derivedStateOf {
+                val moisFormates = (1..12).map { "$currentYear-${it.toString().padStart(2, '0')}" }
+                val mapMois = mutableMapOf<String, Long>()
+
+                pontesData.values.forEach { pontesParDate ->
+                    pontesParDate.forEach { (date, ponte) ->
+                        val mois = date.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                        if (mois.startsWith(currentYear)) {
+                            mapMois[mois] = (mapMois[mois] ?: 0) + (ponte.nbOeufs ?: 0)
+                        }
+                    }
+                }
+
+                moisFormates.map { mois -> mapMois[mois] ?: 0L }
+            }
+        }
+        val mois = listOf("Jan", "Fév", "Mar", "Avr", "Mai", "Jui", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc")
+        val decadeStart = (currentYear.toInt() / 10) * 10
+        val annees = (decadeStart..decadeStart + 9).map { it.toString() }
+
+
+        val valeursAnnuellesChart by remember(pontesData) {
+            derivedStateOf {
+                val mapAnnees = mutableMapOf<String, Long>()
+
+                pontesData.values.forEach { pontesParDate ->
+                    pontesParDate.forEach { (date, ponte) ->
+                        val annee = date.year.toString()
+                        mapAnnees[annee] = (mapAnnees[annee] ?: 0L) + (ponte.nbOeufs ?: 0)
+                    }
+                }
+
+                // Générer une liste d'années sur 10 ans (comme decadeStart)
+                val annees = (decadeStart..decadeStart + 9).map { it.toString() }
+                annees.map { annee -> mapAnnees[annee] ?: 0L }
+            }
+        }
+
+
+        when (selectedGraphOption) {
+            "Mensuel" -> BarChartSection(
+                title = "Production mensuelle",
+                labels = mois,
+                values = valeursMensuellesChart.map { it.toFloat() }
+            )
+
+            "Annuel" -> BarChartSection(
+                title = "Production annuelle",
+                labels = annees,
+                values = valeursAnnuellesChart.map { it.toFloat() }
+            )
+
+            "Par poule" -> {
+                val labels = statsParPoule.keys.toList()
+                val values = statsParPoule.values.map { it.toFloat() }
+                BarChartParPouleSection("Production par poule", labels, values)
+            }
+
+            "Production individuelle" -> {
+                val dates = getDatesBetween(selectedStartDate, selectedEndDate)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 500.dp) // Limite pour éviter le scroll infini dans scroll
+                ) {
+                    StatsPontesTable(poulesList, pontesData, dates)
+                }
+            }
+
+
+
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
     }
 }
 
-// Utilitaire : calcul du nombre de mois entre deux YearMonth inclusivement
-@RequiresApi(Build.VERSION_CODES.O)
-fun YearMonth.untilInclusive(other: YearMonth): Int {
-    return Period.between(this.atDay(1), other.atEndOfMonth()).toTotalMonths().toInt().coerceAtLeast(1)
+@Composable
+fun StatCardSimple(value: Long, label: String, modifier: Modifier = Modifier) {
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(6.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = value.toString(),
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF5D4037)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
+        }
+    }
 }
 
 
@@ -254,17 +431,12 @@ fun selectDateRange(
     initialEnd: LocalDate,
     onRangeSelected: (LocalDate, LocalDate) -> Unit
 ) {
-    // Affiche un message "date de début"
-    android.widget.Toast.makeText(context, "Sélectionnez la date de début", android.widget.Toast.LENGTH_SHORT).show()
-
+    Toast.makeText(context, "Sélectionnez la date de début", Toast.LENGTH_SHORT).show()
     DatePickerDialog(
         context,
         { _, yearStart, monthStart, dayStart ->
             val start = LocalDate.of(yearStart, monthStart + 1, dayStart)
-
-            // Affiche un message "date de fin"
-            android.widget.Toast.makeText(context, "Sélectionnez la date de fin", android.widget.Toast.LENGTH_SHORT).show()
-
+            Toast.makeText(context, "Sélectionnez la date de fin", Toast.LENGTH_SHORT).show()
             DatePickerDialog(
                 context,
                 { _, yearEnd, monthEnd, dayEnd ->
@@ -273,10 +445,19 @@ fun selectDateRange(
                 },
                 initialEnd.year, initialEnd.monthValue - 1, initialEnd.dayOfMonth
             ).show()
-
         },
         initialStart.year, initialStart.monthValue - 1, initialStart.dayOfMonth
     ).show()
 }
 
 
+@RequiresApi(Build.VERSION_CODES.O)
+fun getDatesBetween(start: LocalDate, end: LocalDate): List<LocalDate> {
+    val dates = mutableListOf<LocalDate>()
+    var date = start
+    while (!date.isAfter(end)) {
+        dates.add(date)
+        date = date.plusDays(1)
+    }
+    return dates
+}

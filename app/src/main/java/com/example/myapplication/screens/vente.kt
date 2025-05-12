@@ -109,6 +109,9 @@ fun VenteTab(
     venteExistante: Vente? = null,
     onVenteValidee: () -> Unit = {}
 ) {
+    val poulesDisponibles = poules.filter {
+        it.estVendue != true && it.dateDisparition == null && it.dateDeces == null
+    }
     val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
     val firestore = FirebaseFirestore.getInstance()
     val context = LocalContext.current
@@ -216,7 +219,7 @@ fun VenteTab(
                     onDismissRequest = { pouleDropdownExpanded = false },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    poules.forEach { poule ->
+                    poulesDisponibles.forEach { poule ->
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -236,6 +239,7 @@ fun VenteTab(
                             }
                         )
                     }
+
                 }
 
                 Box(
