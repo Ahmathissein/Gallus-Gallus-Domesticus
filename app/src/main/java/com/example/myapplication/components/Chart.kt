@@ -292,7 +292,6 @@ fun StatsPontesTable(
     val horState  = rememberScrollState()
 
     Column {
-        // ── En-tête ───────────────────────────────────────────────────────────────
         Row {
             // première cellule vide
             Box(

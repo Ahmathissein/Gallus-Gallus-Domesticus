@@ -379,12 +379,13 @@ fun StatsScreen(onMenuClick: () -> Unit) {
 
             "Production individuelle" -> {
                 val dates = getDatesBetween(selectedStartDate, selectedEndDate)
+                val sortedDates = dates.sortedDescending() // ou .sorted() selon le sens voulu
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 500.dp) // Limite pour éviter le scroll infini dans scroll
                 ) {
-                    StatsPontesTable(poulesList, pontesData, dates)
+                    StatsPontesTable(poulesList, pontesData, sortedDates)
                 }
             }
 
