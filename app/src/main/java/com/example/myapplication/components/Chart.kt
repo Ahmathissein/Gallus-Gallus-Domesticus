@@ -320,21 +320,30 @@ fun StatsPontesTable(
         }
         Divider()
 
-        // ── Corps du tableau ─────────────────────────────────────────────────────
         Row {
-            // colonne des noms + lignes “Total”
-            Column(modifier = Modifier.verticalScroll(vertState)) {
-                poules.forEach { poule ->
-                    Box(
-                        modifier = Modifier
-                            .width(100.dp)
-                            .height(40.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(poule.nom, modifier = Modifier.padding(start = 8.dp))
+            // Colonne gauche : noms des poules + total
+            Column {
+                // 🐔 Noms des poules avec scroll si nécessaire
+                Box(
+                    modifier = Modifier
+                        .heightIn(max = 200.dp)
+                        .verticalScroll(vertState)
+                ) {
+                    Column {
+                        poules.forEach { poule ->
+                            Box(
+                                modifier = Modifier
+                                    .width(100.dp)
+                                    .height(40.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(poule.nom, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
                     }
                 }
-                // Total œufs
+
+                // ✅ Lignes fixes : Total œufs / mauvais
                 Box(
                     modifier = Modifier
                         .width(100.dp)
@@ -343,7 +352,7 @@ fun StatsPontesTable(
                 ) {
                     Text("Total œufs", fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
                 }
-                // Total mauvais
+
                 Box(
                     modifier = Modifier
                         .width(100.dp)
@@ -354,35 +363,48 @@ fun StatsPontesTable(
                 }
             }
 
-            // cellule des valeurs
-            Row(
-                modifier = Modifier
-                    .horizontalScroll(horState)
-                    .verticalScroll(vertState)
-            ) {
-                dates.forEach { date ->
-                    Column {
-                        // ligne par poule
-                        poules.forEach { poule ->
-                            val p = pontesData[poule.id]?.get(date)
-                            val total = p?.nbOeufs ?: 0
-                            val mauvais = p?.nbOeufsMauvais ?: 0
-                            val bons = total - mauvais
-                            Box(
-                                modifier = Modifier
-                                    .width(80.dp)
-                                    .height(40.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (total > 0) {
-                                    Text("$bons / $total", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                } else {
-                                    Text("-", fontWeight = FontWeight.Bold)
+            // 📊 Cellules des valeurs
+            Column {
+                // 🐔 Valeurs par poule
+                Box(
+                    modifier = Modifier
+                        .heightIn(max = 200.dp)
+                        .verticalScroll(vertState)
+                ) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(horState)
+                    ) {
+                        dates.forEach { date ->
+                            Column {
+                                poules.forEach { poule ->
+                                    val p = pontesData[poule.id]?.get(date)
+                                    val total = p?.nbOeufs ?: 0
+                                    val mauvais = p?.nbOeufsMauvais ?: 0
+                                    val bons = total - mauvais
+                                    Box(
+                                        modifier = Modifier
+                                            .width(80.dp)
+                                            .height(40.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (total > 0) {
+                                            Text("$bons / $total", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        } else {
+                                            Text("-", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                 }
                             }
-
                         }
-                        // total œufs
+                    }
+                }
+
+                // ✅ Lignes fixes : Totaux globaux
+                Row(
+                    modifier = Modifier.horizontalScroll(horState)
+                ) {
+                    dates.forEach { date ->
+                        // Total œufs
                         val totalEggs = poules.sumOf { pontesData[it.id]?.get(date)?.nbOeufs ?: 0 }
                         Box(
                             modifier = Modifier
@@ -392,20 +414,34 @@ fun StatsPontesTable(
                         ) {
                             Text(totalEggs.toString(), fontWeight = FontWeight.Bold)
                         }
-                        // total mauvais
-                        val totalBad = poules.sumOf { pontesData[it.id]?.get(date)?.nbOeufsMauvais ?: 0 }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.horizontalScroll(horState)
+                ) {
+                    dates.forEach { date ->
+                        val total = poules.sumOf { pontesData[it.id]?.get(date)?.nbOeufs ?: 0 }
+                        val mauvais = poules.sumOf { pontesData[it.id]?.get(date)?.nbOeufsMauvais ?: 0 }
+                        val bons = total - mauvais
                         Box(
                             modifier = Modifier
                                 .width(80.dp)
                                 .height(40.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(totalBad.toString(), color = Color.Red, fontWeight = FontWeight.Bold)
+                            if (total > 0) {
+                                Text("$bons / $total", fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("-", fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
+
             }
         }
+
     }
 }
 
