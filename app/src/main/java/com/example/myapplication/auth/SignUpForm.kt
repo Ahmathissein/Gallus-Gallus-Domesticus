@@ -16,7 +16,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 
 @Composable
@@ -27,6 +29,8 @@ fun SignupForm(
     MyApplicationTheme {
         val auth = Firebase.auth
 
+        var firstName by remember { mutableStateOf("") }
+        var lastName by remember { mutableStateOf("") }
         var email by remember { mutableStateOf("") }
         var password by remember { mutableStateOf("") }
         var confirmPassword by remember { mutableStateOf("") }
@@ -62,6 +66,27 @@ fun SignupForm(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = firstName,
+                        onValueChange = { firstName = it },
+                        label = { Text("Prénom", color = Color(0xFF5D4037)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = lastName,
+                        onValueChange = { lastName = it },
+                        label = { Text("Nom", color = Color(0xFF5D4037)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
 
                     OutlinedTextField(
                         value = email,
@@ -114,23 +139,67 @@ fun SignupForm(
                     Button(
                         onClick = {
                             message = ""
-                            if (email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+
+                            // 1. Vérification côté client
+                            if (firstName.isBlank() || lastName.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
                                 message = "Veuillez remplir tous les champs."
+                            } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                                message = "Format d'email invalide."
                             } else if (password != confirmPassword) {
                                 message = "Les mots de passe ne correspondent pas."
-                            } else if (password.length < 6) {
+                            } else if (password.length < 8) {
                                 message = "Le mot de passe doit contenir au moins 6 caractères."
-                            } else {
-                                auth.createUserWithEmailAndPassword(email, password)
-                                    .addOnCompleteListener { task ->
-                                        if (task.isSuccessful) {
-                                            auth.signOut()
-                                            switchToLoginTab?.invoke()
-                                            message = "Compte créé avec succès. Veuillez vous connecter."
-                                        } else {
-                                            message = task.exception?.localizedMessage ?: "Erreur d'inscription."
+                            }else if (!isPasswordStrong(password)) {
+                                message = "Le mot de passe doit contenir au moins 8 caractères, dont une majuscule, une minuscule, un chiffre et un caractère spécial."
+                            }
+                            else {
+                                // 2. Tentative de création du compte
+                                try {
+                                    auth.createUserWithEmailAndPassword(email, password)
+                                        .addOnCompleteListener { task ->
+                                            if (task.isSuccessful) {
+                                                try {
+                                                    val uid = task.result?.user?.uid
+                                                        ?: throw Exception("UID introuvable.")
+
+                                                    val user = User(
+                                                        uid = uid,
+                                                        prenom = firstName,
+                                                        nom = lastName,
+                                                        email = email
+                                                    )
+
+                                                    FirebaseFirestore.getInstance().collection("utilisateurs")
+                                                        .document(uid)
+                                                        .set(user)
+                                                        .addOnSuccessListener {
+                                                            auth.signOut()
+                                                            switchToLoginTab?.invoke()
+                                                            message = "Compte créé avec succès. Veuillez vous connecter."
+                                                        }
+                                                        .addOnFailureListener { e ->
+                                                            message = "Utilisateur créé, mais Firestore a échoué : ${e.localizedMessage}"
+                                                        }
+                                                } catch (e: Exception) {
+                                                    message = "Une erreur interne est survenue : ${e.localizedMessage}"
+                                                }
+                                            } else {
+                                                val exception = task.exception
+                                                when {
+                                                    exception is com.google.firebase.auth.FirebaseAuthUserCollisionException ->
+                                                        message = "Cet e-mail est déjà utilisé par un autre compte. Veuillez vous diriger vers l'onglet de connection"
+
+                                                    exception is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException ->
+                                                        message = "L'adresse e-mail est invalide."
+
+                                                    else ->
+                                                        message = exception?.localizedMessage ?: "Erreur inconnue. Réessayez plus tard."
+                                                }
+                                            }
                                         }
-                                    }
+                                } catch (e: Exception) {
+                                    message = "Erreur lors de la création du compte : ${e.localizedMessage}"
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xCC9C5700)),
@@ -138,6 +207,7 @@ fun SignupForm(
                     ) {
                         Text("S'inscrire", color = Color.White)
                     }
+
 
                     if (message.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -147,4 +217,9 @@ fun SignupForm(
             }
         }
     }
+}
+
+fun isPasswordStrong(password: String): Boolean {
+    val passwordRegex = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@\$!%*?&.\\-])[A-Za-z\\d@\$!%*?&.\\-]{8,}$")
+    return passwordRegex.matches(password)
 }

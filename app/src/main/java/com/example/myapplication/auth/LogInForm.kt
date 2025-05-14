@@ -27,6 +27,9 @@ fun LoginForm(onAuthSuccess: () -> Unit) {
         var password by remember { mutableStateOf("") }
         var message by remember { mutableStateOf("") }
         var passwordVisible by remember { mutableStateOf(false) }
+        var showResetDialog by remember { mutableStateOf(false) }
+        var resetEmail by remember { mutableStateOf("") }
+        var resetMessage by remember { mutableStateOf("") }
 
         Box(
             modifier = Modifier
@@ -100,9 +103,19 @@ fun LoginForm(onAuthSuccess: () -> Unit) {
                                         if (task.isSuccessful) {
                                             onAuthSuccess()
                                         } else {
-                                            message = "Email ou mot de passe incorrect."
+                                            val errorMessage = when (task.exception?.message) {
+                                                "There is no user record corresponding to this identifier." -> "Aucun compte ne correspond à cet email."
+                                                "The password is invalid or the user does not have a password." -> "Mot de passe incorrect."
+                                                "The user account has been disabled by an administrator." -> "Ce compte a été désactivé."
+                                                else -> task.exception?.localizedMessage ?: "Erreur inconnue lors de la connexion."
+                                            }
+                                            message = errorMessage
                                         }
                                     }
+                                    .addOnFailureListener {
+                                        message = "Erreur de connexion. Vérifiez votre réseau ou réessayez plus tard."
+                                    }
+
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xCC9C5700)),
@@ -110,6 +123,54 @@ fun LoginForm(onAuthSuccess: () -> Unit) {
                     ) {
                         Text("Se connecter", color = Color.White)
                     }
+                    TextButton(onClick = { showResetDialog = true }) {
+                        Text("Mot de passe oublié ?", color = Color(0xCC9C5700))
+                    }
+                    if (showResetDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showResetDialog = false },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    if (resetEmail.isBlank()) {
+                                        resetMessage = "Veuillez entrer votre email."
+                                    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(resetEmail).matches()) {
+                                        resetMessage = "Format d'email invalide."
+                                    } else {
+                                        Firebase.auth.sendPasswordResetEmail(resetEmail)
+                                            .addOnSuccessListener {
+                                                resetMessage = "Email de réinitialisation envoyé."
+                                            }
+                                            .addOnFailureListener {
+                                                resetMessage = "Erreur : ${it.localizedMessage}"
+                                            }
+                                    }
+                                }) {
+                                    Text("Envoyer", color = Color(0xCC9C5700))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showResetDialog = false }) {
+                                    Text("Annuler")
+                                }
+                            },
+                            title = { Text("Réinitialisation du mot de passe") },
+                            text = {
+                                Column {
+                                    OutlinedTextField(
+                                        value = resetEmail,
+                                        onValueChange = { resetEmail = it },
+                                        label = { Text("Email") },
+                                        singleLine = true
+                                    )
+                                    if (resetMessage.isNotEmpty()) {
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(resetMessage, color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        )
+                    }
+
 
                     if (message.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))

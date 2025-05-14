@@ -320,51 +320,94 @@ fun VenteTab(
     }
 }
 
-
-
 @Composable
 fun HistoriqueTab(onModify: (Vente) -> Unit) {
     val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
     val firestore = FirebaseFirestore.getInstance()
+
     var ventes by remember { mutableStateOf<List<Vente>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        firestore.collection("ventes").document(userId).collection("liste")
-            .get()
-            .addOnSuccessListener { snapshot ->
-                ventes = snapshot.documents.mapNotNull { it.toObject(Vente::class.java) }
+    DisposableEffect(Unit) {
+        val listener = firestore.collection("ventes").document(userId).collection("liste")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    isLoading = false
+                    return@addSnapshotListener
+                }
+
+                ventes = snapshot?.documents?.mapNotNull { it.toObject(Vente::class.java) } ?: emptyList()
                 isLoading = false
             }
+
+        onDispose {
+            listener.remove()
+        }
     }
 
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(8.dp)
+    ) {
+
+        // 🔍 Barre de recherche
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = { Text("Recherche par type, client ou date") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         if (isLoading) {
             CircularProgressIndicator()
-        } else if (ventes.isEmpty()) {
-            Text("Aucune vente enregistrée", color = Color.Gray)
         } else {
-            ventes.sortedByDescending { it.date }.forEach { vente ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Type : ${vente.type}", fontWeight = FontWeight.Bold)
-                        Text("Date : ${vente.date}")
-                        Text("Prix unitaire : ${vente.prixUnitaire} €")
-                        vente.quantite?.let { Text("Quantité : $it") }
-                        vente.client.takeIf { it.isNotBlank() }?.let { Text("Client : $it") }
+            val ventesFiltrees = ventes.filter {
+                val query = searchQuery.lowercase()
+                it.type.lowercase().contains(query)
+                        || it.client.lowercase().contains(query)
+                        || it.date.contains(query)
+            }.sortedByDescending { it.date }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            TextButton(onClick = { onModify(vente) }) {
-                                Text("Modifier")
+            if (ventesFiltrees.isEmpty()) {
+                Text("Aucune vente trouvée.", color = Color.Gray)
+            } else {
+                ventesFiltrees.forEach { vente ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Type : ${vente.type}", fontWeight = FontWeight.Bold)
+                            Text("Date : ${vente.date}")
+                            Text("Prix unitaire : ${vente.prixUnitaire} €")
+                            vente.quantite?.let { Text("Quantité : $it") }
+                            vente.client.takeIf { it.isNotBlank() }?.let { Text("Client : $it") }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { onModify(vente) }) {
+                                    Text("Modifier")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(onClick = {
+                                    firestore.collection("ventes")
+                                        .document(userId)
+                                        .collection("liste")
+                                        .document(vente.id)
+                                        .delete()
+                                }) {
+                                    Text("Supprimer", color = Color.Red)
+                                }
                             }
                         }
                     }

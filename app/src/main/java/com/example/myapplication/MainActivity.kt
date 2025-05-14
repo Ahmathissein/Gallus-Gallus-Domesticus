@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import Header
+import ProfilScreen
 import VenteScreen
 import android.os.Build
 import android.os.Bundle
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
                 val navController = rememberNavController()
+                var menuRefreshKey by remember { mutableStateOf(0) }
                 var selectedPoule by remember { mutableStateOf<Poule?>(null) }
 
                 ModalNavigationDrawer(
@@ -43,10 +45,16 @@ class MainActivity : ComponentActivity() {
                         Menu(
                             onClose = { scope.launch { drawerState.close() } },
                             onItemSelected = { screen ->
-                                navController.navigate(screen)
+                                if (screen == "profil") {
+                                    navController.navigate("profil")
+                                } else {
+                                    navController.navigate(screen)
+                                }
                                 scope.launch { drawerState.close() }
-                            }
+                            },
+                            refreshKey = menuRefreshKey // <-- ajouté ici
                         )
+
                     }
                 ) {
                     Scaffold { innerPadding ->
@@ -80,7 +88,7 @@ class MainActivity : ComponentActivity() {
                                     arguments = listOf(navArgument("json") {
                                         nullable = true
                                         defaultValue = null
-                                    })
+                                      })
                                 ) { backStackEntry ->
                                     val json = backStackEntry.arguments?.getString("json")
                                     val pouleAModifier = json?.let { Gson().fromJson(it, Poule::class.java) }
@@ -120,6 +128,11 @@ class MainActivity : ComponentActivity() {
                                 composable("saisiePonte") {
                                     SaisiePonte()
                                 }
+
+                                composable("profil") {
+                                    ProfilScreen(onProfileUpdated = { menuRefreshKey++ })
+                                }
+
                             }
 
                         }

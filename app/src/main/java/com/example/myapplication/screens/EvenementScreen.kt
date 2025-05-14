@@ -4,6 +4,8 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -115,14 +117,20 @@ fun EvenementScreen(onMenuClick: () -> Unit) {
         Card(
             shape = RoundedCornerShape(8.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
         ) {
-            Column(Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+
                 Text(
                     text = "Tous les événements",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color(0xFF5D4037)
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
                     "Historique complet des événements du poulailler",
                     style = MaterialTheme.typography.bodySmall,
@@ -137,31 +145,36 @@ fun EvenementScreen(onMenuClick: () -> Unit) {
                     val type = it["type"] as? String ?: ""
                     val query = searchQuery.lowercase()
 
-                    (onglets[selectedTab] == "Tous" || type == onglets[selectedTab])
-                            && (titre.contains(query) || description.contains(query))
+                    (onglets[selectedTab] == "Tous" || type == onglets[selectedTab]) &&
+                            (titre.contains(query) || description.contains(query))
                 }
-                Text("Affichage des événements pour l’onglet : ${onglets[selectedTab]}")
 
                 when {
                     isLoading -> CircularProgressIndicator()
                     filtered.isEmpty() -> Text("Aucun événement trouvé.", color = Color.Gray)
                     else -> {
-                        filtered.forEach { evt ->
-                            EvenementCard(
-                                titre = evt["titre"] as? String ?: "",
-                                type = evt["type"] as? String ?: "",
-                                date = evt["date"] as? String ?: "",
-                                description = evt["description"] as? String ?: "",
-                                cout = (evt["cout"] as? Number)?.toDouble() ?: 0.0
-                            )
-
+                        // ✅ La LazyColumn doit avoir un height dynamique : weight ou fillMaxHeight
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f) // <- essentiel pour permettre le scroll
+                        ) {
+                            items(filtered) { evt ->
+                                EvenementCard(
+                                    titre = evt["titre"] as? String ?: "",
+                                    type = evt["type"] as? String ?: "",
+                                    date = evt["date"] as? String ?: "",
+                                    description = evt["description"] as? String ?: "",
+                                    cout = (evt["cout"] as? Number)?.toDouble() ?: 0.0
+                                )
+                            }
                         }
                     }
                 }
-
             }
         }
     }
+
 
     // 🧾 Modale de création d'événement (à compléter)
     if (showDialog) {
@@ -342,7 +355,7 @@ fun EvenementCard(
     cout: Double,
     onClickDetails: () -> Unit = {}
 )
- {
+{
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -413,4 +426,3 @@ fun BadgeType(type: String) {
         )
     }
 }
-
